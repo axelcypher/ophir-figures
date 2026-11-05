@@ -447,7 +447,7 @@ function openImageDialog(figure){
 
 async function uploadFigureImage(figureId,file){
   const form=new FormData();form.append('file',file);
-  const response=await fetch(`/api/figures/${figureId}/image`,{method:'POST',body:form});
+  const response=await fetch(appUrl(`/api/figures/${figureId}/image`),{method:'POST',body:form});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Upload fehlgeschlagen');
   return data;
@@ -559,7 +559,7 @@ function wireImportResult(modal){
 // pairs (as ophir_figures/link_import.py reads them) and opens the app with them in the address's
 // fragment, which never reaches a server log. The page is only read, never changed or sent elsewhere.
 function bookmarkletHref(){
-  const code=`(()=>{const d=document,m={},j=[],f={};d.querySelectorAll('meta[property],meta[name],meta[itemprop]').forEach(e=>{const k=e.getAttribute('property')||e.getAttribute('name')||e.getAttribute('itemprop');if(k&&e.content&&!(k in m))m[k]=e.content.slice(0,2000)});d.querySelectorAll('script[type="application/ld+json"]').forEach(s=>{try{j.push(JSON.parse(s.textContent))}catch(e){}});const a=(l,v)=>{l=(l||'').replace(/\\s+/g,' ').trim().replace(/[:：]$/,'');v=(v||'').replace(/\\s+/g,' ').trim();if(l&&v&&l.length<60&&!(l in f))f[l]=v.slice(0,500)};d.querySelectorAll('.data-field').forEach(e=>a(e.querySelector('.data-label')?.innerText,e.querySelector('.data-value')?.innerText));d.querySelectorAll('dt').forEach(e=>{const n=e.nextElementSibling;if(n&&n.tagName=='DD')a(e.innerText,n.innerText)});d.querySelectorAll('tr').forEach(r=>{const c=r.querySelectorAll(':scope>th,:scope>td');if(c.length==2)a(c[0].innerText,c[1].innerText)});const b={url:location.href,canonical:d.querySelector('link[rel=canonical]')?.href||'',title:d.title,heading:d.querySelector('h1')?.innerText||'',meta:m,jsonld:j,fields:f};let s=JSON.stringify(b);if(s.length>400000){b.jsonld=[];s=JSON.stringify(b)}const u='${location.origin}/#import='+encodeURIComponent(s);window.open(u,'_blank')||(location.href=u)})()`;
+  const code=`(()=>{const d=document,m={},j=[],f={};d.querySelectorAll('meta[property],meta[name],meta[itemprop]').forEach(e=>{const k=e.getAttribute('property')||e.getAttribute('name')||e.getAttribute('itemprop');if(k&&e.content&&!(k in m))m[k]=e.content.slice(0,2000)});d.querySelectorAll('script[type="application/ld+json"]').forEach(s=>{try{j.push(JSON.parse(s.textContent))}catch(e){}});const a=(l,v)=>{l=(l||'').replace(/\\s+/g,' ').trim().replace(/[:：]$/,'');v=(v||'').replace(/\\s+/g,' ').trim();if(l&&v&&l.length<60&&!(l in f))f[l]=v.slice(0,500)};d.querySelectorAll('.data-field').forEach(e=>a(e.querySelector('.data-label')?.innerText,e.querySelector('.data-value')?.innerText));d.querySelectorAll('dt').forEach(e=>{const n=e.nextElementSibling;if(n&&n.tagName=='DD')a(e.innerText,n.innerText)});d.querySelectorAll('tr').forEach(r=>{const c=r.querySelectorAll(':scope>th,:scope>td');if(c.length==2)a(c[0].innerText,c[1].innerText)});const b={url:location.href,canonical:d.querySelector('link[rel=canonical]')?.href||'',title:d.title,heading:d.querySelector('h1')?.innerText||'',meta:m,jsonld:j,fields:f};let s=JSON.stringify(b);if(s.length>400000){b.jsonld=[];s=JSON.stringify(b)}const u='${location.origin}${APP_ROOT}/#import='+encodeURIComponent(s);window.open(u,'_blank')||(location.href=u)})()`;
   return `javascript:${encodeURIComponent(code)}`;
 }
 

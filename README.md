@@ -59,10 +59,14 @@ The first start creates the database in the `ophir_figures_data` volume. There i
 | --- | --- | --- | --- | --- |
 | `SECRET_KEY` | env | Signs the session cookies; gunicorn (the container) does not start without it | none; only `python app.py` (the local debug server), the demo server and the tests fall back to a public development key | yes |
 | `DATABASE_PATH` | env | SQLite file; pictures and thumbnails live in `figure-images/` and `figure-thumbnails/` next to it | `ophir-figures.db` in the repo root; `/data/ophir-figures.db` in the image | no |
-| `TRUST_PROXY_HEADERS` | env | `true`, `1` or `yes`: honour `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` (client address for the login throttle, `https://` redirect URIs) | off | behind a TLS-terminating proxy |
+| `TRUST_PROXY_HEADERS` | env | `true`, `1` or `yes`: honour `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` / `X-Forwarded-Prefix` (client address for the login throttle, `https://` redirect URIs, the path the app is served under) | off | behind a TLS-terminating proxy |
 | `OAUTH_CONFIG_PATH` | env | SSO config file that replaces the Admin UI settings | `/config/oauth.json` | no |
-| `PUBLIC_PROFILE_URL` | env | Base URL public profile links are built on, e.g. `https://ophirfigures.example.org` | the address the settings page was opened on | no |
+| `PUBLIC_PROFILE_URL` | env | Base URL public profile links are built on, e.g. `https://ophirfigures.example.org` or, under a path, `https://example.org/figures` | the address the settings page was opened on | no |
 | SSO settings | **Admin → Single Sign-On** or `oauth.json` | One OAuth2/OIDC provider, shape as in [oauth.json.example](oauth.json.example) | off | no |
+
+### Under a path
+
+The app can share a host with others under a path such as `https://example.org/figures`. The reverse proxy strips the path before passing a request on and names it in `X-Forwarded-Prefix` (Traefik's `StripPrefix` middleware does both); with `TRUST_PROXY_HEADERS` set, every link, redirect and request of the app then carries it. The session cookie has a name of its own (`ophir_figures_session`), so another app on the same host does not overwrite it.
 
 ### Single sign-on (OAuth2 / OIDC)
 

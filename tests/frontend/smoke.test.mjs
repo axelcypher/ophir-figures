@@ -123,3 +123,33 @@ describe('admin in the browser', { skip }, () => {
     assert.deepEqual(page.problems.splice(0), []);
   });
 });
+
+// The homelab serves the app under /figures (Traefik strips it and names it in X-Forwarded-Prefix):
+// every address the page asks for has to carry it, or the request lands outside the app.
+describe('the app under a path prefix', { skip }, () => {
+  let server, page;
+  before(async () => {
+    server = await startServer({ prefix: '/figures' });
+    page = await startBrowser();
+    await page.login(server.base, 'demo', 'figuren-1234');
+  });
+  after(async () => { await page?.close(); server?.stop(); });
+
+  test('views, a figure, the bookmarklet and a public profile stay under the prefix', async () => {
+    for (const route of ['catalog', 'collection', 'watchlist', 'preorders', 'settings', 'dashboard']) await page.route(route);
+    await page.route('catalog');
+    assert.equal(await page.evaluate(`document.querySelectorAll('.fig-tile').length`), 5);
+    await page.evaluate(`(document.querySelector('.fig-tile[data-figure="${MIKU}"]').click(),1)`);
+    await page.waitFor(`!document.querySelector('#figure-modal').classList.contains('hidden')`, { message: 'the figure dialog' });
+    await page.evaluate(`(closeOverlay('figure-modal'),1)`);
+    assert.ok(decodeURIComponent(await page.evaluate(`bookmarkletHref()`)).includes(`${server.base}/#import=`), 'the bookmarklet opens the app under the prefix');
+
+    await page.evaluate(`api('/api/account/public-profile',{method:'PUT',body:JSON.stringify({enabled:true,slug:'alex'})})`);
+    await page.goto(`${server.base}/u/alex`);
+    await page.waitFor(`document.querySelector('.public-head')`, { message: 'the public profile to load' });
+
+    const origin = new URL(server.base).origin;
+    assert.deepEqual(page.requests.filter(url => url.startsWith(origin) && !url.startsWith(`${server.base}/`)), []);
+    assert.deepEqual(page.problems.splice(0), []);
+  });
+});

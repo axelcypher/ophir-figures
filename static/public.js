@@ -4,7 +4,9 @@
 
 const view=document.getElementById('content');
 const slug=view.dataset.slug;
-const base=`/u/${encodeURIComponent(slug)}`;
+// The path the app is served under ('' at the root, e.g. /figures behind a proxy), from <html data-root>.
+const root=document.documentElement.dataset.root||'';
+const base=`${root}/u/${encodeURIComponent(slug)}`;
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const number=value=>Number(value||0).toLocaleString('de-DE');
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -69,7 +71,7 @@ function render(){
   });
 }
 
-fetch(`/api/public/${encodeURIComponent(slug)}`).then(async response=>{
+fetch(`${root}/api/public/${encodeURIComponent(slug)}`).then(async response=>{
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||`Fehler ${response.status}`);
   profile=data;render();

@@ -130,3 +130,22 @@ describe('the bookmarklet', () => {
     assert.deepEqual(snapshot.fields, { Origin: 'Frieren: Beyond Journey’s End', 'Release date': '03/27/2026 as Limited', Manufacturer: 'Max Factory' });
   });
 });
+
+describe('under a path prefix', () => {
+  const requested = [];
+  const prefixed = loadScripts(['js/core.js', 'js/figures-ui.js'], {
+    fetch: async url => { requested.push(url); return { status: 200, ok: true, json: async () => ({}) }; },
+  }, { root: '/figures' });
+
+  test('API calls, pictures and the bookmarklet carry the root the page names', async () => {
+    await prefixed.run(`api('/api/dashboard')`);
+    assert.deepEqual(requested, ['/figures/api/dashboard']);
+    assert.equal(prefixed.run(`figureThumb({id:3})`), '/figures/images/figures/3/thumb');
+    assert.equal(prefixed.run(`appUrl('https://shop.test/item')`), 'https://shop.test/item', 'other addresses stay as they are');
+    assert.ok(decodeURIComponent(prefixed.run(`bookmarkletHref()`)).includes("'http://ophirfigures.test/figures/#import='"));
+  });
+
+  test('at the root nothing is added', () => {
+    assert.equal(run(`appUrl('/api/dashboard')`), '/api/dashboard');
+  });
+});

@@ -2,7 +2,10 @@
 database and the same small catalogue the Python tests use. Nothing reaches the internet: product
 pages and pictures come from fakes.
 
-    python tests/frontend/serve.py <port>
+    python tests/frontend/serve.py <port> [<path prefix, e.g. /figures>]
+
+With a prefix it stands in for the homelab's Traefik: only requests under the prefix reach the app,
+with the prefix stripped and named in X-Forwarded-Prefix.
 """
 import sys
 from pathlib import Path
@@ -25,6 +28,24 @@ def fake_fetch(url, max_bytes, accept="*/*", session=None):
     raise conftest.ophir_figures.fetch.FetchError("Die Seite antwortet mit Fehler 404.")
 
 
+def strip_prefix(wsgi_app, prefix):
+    """What Traefik's StripPrefix middleware does in front of the app: a 404 outside the prefix,
+    otherwise the path without it and the prefix in X-Forwarded-Prefix."""
+    from werkzeug.exceptions import NotFound
+
+    def strip(environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path != prefix and not path.startswith(prefix + "/"):
+            return NotFound()(environ, start_response)
+        environ["PATH_INFO"] = path[len(prefix):] or "/"
+        environ["HTTP_X_FORWARDED_PREFIX"] = prefix
+        return wsgi_app(environ, start_response)
+    return strip
+
+
 for module in (conftest.ophir_figures.fetch, conftest.ophir_figures.images, conftest.ophir_figures.link_import):
     module.fetch = fake_fetch
-conftest.ophir_figures.app.run(host="127.0.0.1", port=int(sys.argv[1]), debug=False, threaded=True)
+app = conftest.ophir_figures.app
+if len(sys.argv) > 2:
+    app.wsgi_app = strip_prefix(conftest.ophir_figures.web.behind_proxy(app.wsgi_app), sys.argv[2].rstrip("/"))
+app.run(host="127.0.0.1", port=int(sys.argv[1]), debug=False, threaded=True)

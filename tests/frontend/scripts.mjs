@@ -20,8 +20,11 @@ function element() {
   return node;
 }
 
-export function loadScripts(names, extra = {}) {
-  const document = { querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), body: element(), documentElement: element(), addEventListener() {} };
+// root: the path the page says the app is served under (<html data-root>), '' at the root.
+export function loadScripts(names, extra = {}, { root = '' } = {}) {
+  const documentElement = element();
+  if (root) documentElement.dataset.root = root;
+  const document = { querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), body: element(), documentElement, addEventListener() {} };
   const sandbox = {
     console, URL, URLSearchParams, Intl, Promise, Map, Set, Date, Math, JSON, setTimeout, clearTimeout, queueMicrotask, structuredClone,
     document, navigator: { onLine: true }, location: { href: 'http://ophirfigures.test/', origin: 'http://ophirfigures.test', pathname: '/', search: '', hash: '' },

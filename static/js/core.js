@@ -1,5 +1,10 @@
 // Shared state, small helpers, the API client, dialogs, navigation between views.
 
+// The path the app is served under ('' at the root, '/figures' behind a proxy that strips it): the
+// server writes it into <html data-root>. Every address of the app goes through appUrl.
+const APP_ROOT=document.documentElement.dataset.root||'';
+const appUrl=path=>path.startsWith('/')?APP_ROOT+path:path;
+
 const defaultCatalogFilters=()=>({q:'',mode:'all',category:'',manufacturer:'',series:'',character:'',year:'',line:'',scale:'',sort:'release',direction:''});
 const defaultCollectionFilters=()=>({q:'',category:'',manufacturer:'',series:'',character:'',year:'',location:'',condition:'',sort:'added',direction:'desc'});
 const defaultWatchFilters=()=>({q:'',mode:'all',category:'',manufacturer:'',series:'',sort:'wished',direction:'desc'});
@@ -36,19 +41,19 @@ const thisMonth=()=>new Date().toISOString().slice(0,7);
 const plural=(count,one,many)=>`${count} ${count===1?one:many}`;
 const conditionLabel=key=>state.boot?.conditions?.[key]||key;
 const statusLabel=key=>state.boot?.statuses?.[key]||key;
-const figureThumb=figure=>`/images/figures/${figure.id??figure.figure_id}/thumb${figure.image_version?`?v=${figure.image_version}`:''}`;
-const figureImage=figure=>`/images/figures/${figure.id??figure.figure_id}${figure.image_version?`?v=${figure.image_version}`:''}`;
+const figureThumb=figure=>appUrl(`/images/figures/${figure.id??figure.figure_id}/thumb${figure.image_version?`?v=${figure.image_version}`:''}`);
+const figureImage=figure=>appUrl(`/images/figures/${figure.id??figure.figure_id}${figure.image_version?`?v=${figure.image_version}`:''}`);
 
 const api = async (url, options={}) => {
   let response;
   try{
-    response = await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+    response = await fetch(appUrl(url),{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
   }catch(networkError){
     const error=new Error('Keine Verbindung zum Server');
     error.isNetworkError=true;
     throw error;
   }
-  if (response.status===401) { location.href='/login'; const error=new Error('Nicht angemeldet'); error.isAuthError=true; throw error; }
+  if (response.status===401) { location.href=appUrl('/login'); const error=new Error('Nicht angemeldet'); error.isAuthError=true; throw error; }
   let data;
   try{data = await response.json()}
   catch(parseError){throw new Error(`Serverfehler (${response.status})`)}
@@ -74,7 +79,7 @@ function flushPendingSettings(){
   const settings={};
   for(const [key,{timer,value}] of pendingSettings){clearTimeout(timer);settings[key]=value}
   pendingSettings.clear();
-  fetch('/api/settings',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)}).catch(()=>{});
+  fetch(appUrl('/api/settings'),{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)}).catch(()=>{});
 }
 addEventListener('pagehide',flushPendingSettings);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSettings()});

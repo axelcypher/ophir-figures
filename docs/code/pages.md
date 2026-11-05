@@ -16,7 +16,7 @@
 
 | Method | Path | Auth | What it does |
 | --- | --- | --- | --- |
-| GET/PUT | `/api/account/public-profile` | login | The owner's setting: `enabled`, `slug` (3-32 of `a-z0-9-`, no hyphen at either end, unique), `name` (60), `show_wishlist`, `theme` (`auto`/`light`/`dark`); `url` built on `PUBLIC_PROFILE_URL` or the request's host. Enabling needs a slug. |
+| GET/PUT | `/api/account/public-profile` | login | The owner's setting: `enabled`, `slug` (3-32 of `a-z0-9-`, no hyphen at either end, unique), `name` (60), `show_wishlist`, `theme` (`auto`/`light`/`dark`); `url` built on `PUBLIC_PROFILE_URL` or the request's root URL (host plus the path the app is served under). Enabling needs a slug. |
 | GET | `/u/<slug>` | none | `templates/public.html`; 404 page when off or unknown. |
 | GET | `/api/public/<slug>` | none | `{name, slug, collection, facets (category, manufacturer, series), stats (figures, copies), wishlist?}`; figures through `public_figure` only. |
 | GET | `/u/<slug>/images/<id>` | none | Thumbnail, or the full picture with `?size=full`, only for figures in the shared collection or shared default wishlist; 404 otherwise. |

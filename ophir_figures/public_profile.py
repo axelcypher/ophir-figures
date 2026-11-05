@@ -24,7 +24,8 @@ PROFILE_KEY = "publicProfile"
 THEMES = ("auto", "light", "dark")   # auto: as the visitor's system asks
 SLUG = re.compile(r"[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])")
 NAME_LIMIT = 60
-# Where profiles are shared from, e.g. https://figures.example.org -- the app itself may run under
+# Where profiles are shared from, e.g. https://figures.example.org (with the path the app is served
+# under, if any: https://example.org/figures) -- the app itself may run under
 # a private address. Without it the link uses the address the settings were opened on.
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_PROFILE_URL", "").strip().rstrip("/")
 PUBLIC_FIELDS = ("id", "name", "original_name", "characters", "series", "manufacturer", "category", "line", "scale", "edition",
@@ -41,7 +42,7 @@ def load_profile(connection, uid):
 
 
 def profile_url(slug):
-    return f"{PUBLIC_BASE_URL or request.host_url.rstrip('/')}/u/{slug}" if slug else ""
+    return f"{PUBLIC_BASE_URL or request.url_root.rstrip('/')}/u/{slug}" if slug else ""
 
 
 def public_owner(slug):

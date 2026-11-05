@@ -145,7 +145,7 @@ async function renderPreorders(){
   if(stale())return;
   const stats=data.stats;
   content.innerHTML=`${pageHead({eyebrow:'VORBESTELLUNGEN',title:'Vorbestellungen',text:'Was bestellt ist, was noch zu zahlen ist und wann es kommen soll.',
-      actions:'<a class="secondary-button" href="/api/export/preorders.csv">CSV</a><button type="button" class="primary-button" id="preorder-new">＋ Vorbestellen</button>'})}
+      actions:`<a class="secondary-button" href="${appUrl('/api/export/preorders.csv')}">CSV</a><button type="button" class="primary-button" id="preorder-new">＋ Vorbestellen</button>`})}
     ${statPill([
       {label:'Offen',value:stats.open},{label:'Noch zu zahlen',value:money(stats.outstanding),className:stats.outstanding?'missing':''},
       {label:'Diesen Monat',value:stats.due_this_month},{label:'Überfällig',value:stats.overdue,className:stats.overdue?'missing':''},

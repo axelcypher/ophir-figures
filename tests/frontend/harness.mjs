@@ -34,16 +34,18 @@ function stop(child) {
   child.kill();
 }
 
-export async function startServer() {
+/** Starts tests/frontend/serve.py; with a prefix (e.g. '/figures') the app answers only under it,
+ * as behind the homelab's Traefik, and base includes it. */
+export async function startServer({ prefix = '' } = {}) {
   const port = await freePort();
   const python = process.env.OPHIR_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
   const output = [];
-  const child = spawn(python, [path.join(HERE, 'serve.py'), String(port)], {
+  const child = spawn(python, [path.join(HERE, 'serve.py'), String(port), ...(prefix ? [prefix] : [])], {
     cwd: path.resolve(HERE, '..', '..'), env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONUTF8: '1' },
   });
   child.stdout.on('data', chunk => output.push(String(chunk)));
   child.stderr.on('data', chunk => output.push(String(chunk)));
-  const base = `http://127.0.0.1:${port}`;
+  const base = `http://127.0.0.1:${port}${prefix}`;
   for (let attempt = 0; attempt < 120; attempt++) {
     if (child.exitCode !== null) break;
     try { if ((await fetch(`${base}/health`)).ok) return { base, output, stop: () => stop(child) }; } catch {}
@@ -82,10 +84,14 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
   // Everything that would show up red in the browser console: uncaught errors, rejected
   // promises nobody handled, console.error, and answers from the server with a 5xx status.
   const problems = [];
+  // Every address the page asked for, in order (documents, scripts, pictures, API calls).
+  const requests = [];
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.id && pending.has(message.id)) { pending.get(message.id)(message); pending.delete(message.id); return; }
-    if (message.method === 'Runtime.exceptionThrown') {
+    if (message.method === 'Network.requestWillBeSent') {
+      requests.push(message.params.request.url);
+    } else if (message.method === 'Runtime.exceptionThrown') {
       const details = message.params.exceptionDetails;
       problems.push(`exception: ${details.exception?.description || details.text}`);
     } else if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
@@ -103,6 +109,7 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
 
   const page = {
     problems,
+    requests,
     send,
     /** Runs an expression in the page (it may be a promise) and returns its JSON-able value. */
     async evaluate(expression) {

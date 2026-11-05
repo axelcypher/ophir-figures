@@ -65,12 +65,22 @@ app.json = OrjsonProvider(app)
 # (it is right here) and fit only for the debug server and the tests; see require_secret_key.
 DEVELOPMENT_SECRET_KEY = "ophir-figures-local-development-key"
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or DEVELOPMENT_SECRET_KEY
+
+
+def behind_proxy(wsgi_app):
+    """Takes the client's address, scheme, host and path prefix from the one reverse proxy in
+    front (X-Forwarded-For/-Proto/-Host/-Prefix). The scheme makes url_for(_external=True) in the
+    OAuth redirect_uri come out as https://, matching what's registered with the IdP. The prefix
+    is the path a proxy serves the app under and strips before passing a request on (Traefik's
+    StripPrefix, e.g. /figures): it becomes the request's script root, so url_for and the pages'
+    data-root carry it."""
+    return ProxyFix(wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+
 if os.environ.get("TRUST_PROXY_HEADERS", "").lower() in ("1", "true", "yes"):
-    # Opt-in only (never trust X-Forwarded-* from directly-exposed traffic, where a client could
-    # spoof them) -- needed behind a TLS-terminating reverse proxy so url_for(_external=True) in
-    # the OAuth redirect_uri comes out as https://, matching what's registered with the IdP,
-    # instead of the plain http:// Flask would otherwise infer from the proxy's own request.
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    # Opt-in only: never trust X-Forwarded-* from directly-exposed traffic, where a client could
+    # spoof them.
+    app.wsgi_app = behind_proxy(app.wsgi_app)
 # Explicit instead of relying on each browser's own default for cookies without the attribute.
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 

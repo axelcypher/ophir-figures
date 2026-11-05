@@ -7,6 +7,7 @@
 ### core.js
 
 - `state` - `boot` (the bootstrap answer), `route`, `edit` (quick edit: ＋ on tiles), filters per view (`catalogFilters`, `collectionFilters`, `watchFilters` with `default…Filters()`), `watchlistId`, `preorderStatus`, `modalFigure`, `modalTab`, `suggestions`, `gridFigures`.
+- `APP_ROOT` - the path the app is served under, from `<html data-root>` (the request's script root: `''` at the root, `/figures` behind a proxy that strips it); `appUrl(path)` puts it in front of a path starting with `/`. Every address of the app goes through it: `api` does it for every call, and `figureThumb`/`figureImage`, the CSV and SSO links and the bookmarklet use it. `public.js` reads the same attribute.
 - `api(url, options)`, `post`, `patch`, `del` - JSON; 401 goes to `/login`; errors carry `status` and `data`.
 - `routeTo(route, data)` - `dashboard`, `catalog`, `collection`, `watchlist`, `preorders`, `settings`, `admin`; `renderGuard()` lets a late answer drop itself; `refreshCurrentView()`, `refreshCounts()`, `paintCounts()` (`[data-count]` badges).
 - `openDialog({id, eyebrow, title, intro, body, stack, wide})` / `closeDialog()` - dialogs (`.dl-modal`); `fieldValues(root)` reads `[data-field]`.
@@ -26,8 +27,9 @@
 
 ## Tests
 
-- `tests/frontend/unit.test.mjs` - loads the scripts into a vm context (`scripts.mjs`): formatting, search matching, tiles, filter URLs, preorder grouping, and the bookmarklet run against a fake page.
-- `tests/frontend/smoke.test.mjs` - headless Chrome over the DevTools protocol (`harness.mjs`) against `serve.py`: every view, catalogue filters and dialog tabs, a figure from a link into the collection, wish -> preorder -> arrival, settings, admin. Skipped locally without Chrome.
+- `tests/frontend/unit.test.mjs` - loads the scripts into a vm context (`scripts.mjs`): formatting, search matching, tiles, filter URLs, preorder grouping, the bookmarklet run against a fake page, and `appUrl`/`api`/the bookmarklet under a root (`loadScripts(..., {root})`).
+- `tests/frontend/smoke.test.mjs` - headless Chrome over the DevTools protocol (`harness.mjs`) against `serve.py`: every view, catalogue filters and dialog tabs, a figure from a link into the collection, wish -> preorder -> arrival, settings, admin, and the app under `/figures` (`startServer({prefix})`; every request the page makes has to carry the prefix, `page.requests`). Skipped locally without Chrome.
+- `tests/frontend/serve.py <port> [<prefix>]` - with a prefix it stands in for Traefik's StripPrefix: a 404 outside the prefix, otherwise the path without it and the prefix in `X-Forwarded-Prefix`, read by `web.behind_proxy`.
 
 ## Decisions and assumptions
 

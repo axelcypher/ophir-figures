@@ -14,7 +14,8 @@
 | POST | `/logout` | Clears the session. |
 
 - `resolve_oauth_config()` - defaults overlaid by the file at `OAUTH_CONFIG_PATH` (`source: file`) or `app_settings.oauth_config`; read on every call.
-- `resolve_oauth_identity(config, subject, email, name, email_verified)` - linked account; with `email`/`auto_provision` the unlinked account with that verified email; with `auto_provision` a new `user` account plus its default wishlist.
+- `email_is_verified(claims)` - True only for an `email_verified` claim of `true` or the string `"true"` (any case); missing, `false`, `null` or anything else is False. The callback passes this to `resolve_oauth_identity`.
+- `resolve_oauth_identity(config, subject, email, name, email_verified=False)` - linked account; with `email`/`auto_provision` the unlinked account with that verified email (an unverified one that matches gives None); with `auto_provision` a new `user` account plus its default wishlist.
 
 ### oauth_client.py
 
@@ -50,6 +51,6 @@
 ## Decisions and assumptions
 
 - Exactly one SSO provider; `users.oauth_provider` is always `generic`.
-- An unverified provider email never links or creates an account; a missing `email_verified` counts as verified.
+- Matching by email includes admin accounts, so it needs the provider's word that it verified the address: only an explicit `email_verified: true` counts (DeckLedger 369946e). A missing claim used to count as verified, which let anyone who could set that address at the provider take over the account. Google sends the claim; Authentik sends `false` from 2025.10 on unless a scope mapping says otherwise; Entra ID and plain OAuth2 providers send none and so never match by email.
 - No CSRF tokens: forms and API writes rely on `web.reject_cross_site_writes`.
 - Login throttling is not part of this code base (DeckLedger added it after the commit it was built from).

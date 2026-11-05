@@ -52,7 +52,7 @@ async function renderAdmin(){
             <label class="oauth-field"><span>Subjekt-ID-Claim</span><input id="oauth-subject-claim" value="${escapeHtml(oauth.subject_claim||'')}" ${ro}></label>
             <label class="oauth-field oauth-field-wide"><span>Konto-Zuordnung</span><select id="oauth-account-matching" class="select-control" ${ro}>
               <option value="manual" ${oauth.account_matching==='manual'?'selected':''}>Nur manuelle Verknüpfung</option>
-              <option value="email" ${oauth.account_matching==='email'?'selected':''}>Automatisch über identische E-Mail-Adresse verknüpfen</option>
+              <option value="email" ${oauth.account_matching==='email'?'selected':''}>Automatisch über identische, vom Provider bestätigte E-Mail-Adresse verknüpfen</option>
               <option value="auto_provision" ${oauth.account_matching==='auto_provision'?'selected':''}>Neue Konten automatisch anlegen</option>
             </select></label>
           </div>

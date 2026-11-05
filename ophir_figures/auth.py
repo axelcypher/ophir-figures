@@ -48,7 +48,15 @@ def unique_username_from(candidate):
     return username
 
 
-def resolve_oauth_identity(config, subject, email, display_name, email_verified=True):
+def email_is_verified(claims):
+    """Only a provider that says so has vouched for the address: OIDC's email_verified true, as
+    Google sends it (its older endpoints as the string "true"). Authentik sends false from 2025.10
+    on unless a scope mapping vouches for it; a provider that sends nothing proves nothing."""
+    verified = claims.get("email_verified")
+    return verified is True or (isinstance(verified, str) and verified.lower() == "true")
+
+
+def resolve_oauth_identity(config, subject, email, display_name, email_verified=False):
     """Walks the account-matching chain for a login (not link) OAuth callback and
     returns the matched/created users row, or None if no account could be resolved.
     Order is cumulative: exact identity match always applies; email-matching and
@@ -65,9 +73,9 @@ def resolve_oauth_identity(config, subject, email, display_name, email_verified=
             "SELECT * FROM users WHERE oauth_subject='' AND lower(email)=lower(?)", (email,),
         ).fetchone()
         if candidate and not email_verified:
-            # An address the provider itself reports as unverified proves nothing about who is
-            # logging in. Neither is the existing account handed over, nor a second account
-            # created next to it under the same address.
+            # An address the provider has not verified proves nothing about who is logging in.
+            # Neither is the existing account handed over, nor a second account created next to
+            # it under the same address.
             return None
         if candidate:
             connection.execute(
@@ -192,7 +200,7 @@ def oauth_callback():
         session["user_id"] = link_user_id
         return redirect(url_for("index", linked="1"))
 
-    matched = resolve_oauth_identity(config, subject, email, display_name, email_verified=claims.get("email_verified") is not False)
+    matched = resolve_oauth_identity(config, subject, email, display_name, email_verified=email_is_verified(claims))
     if not matched:
         return redirect(url_for("login", error="no_account"))
     session.clear()

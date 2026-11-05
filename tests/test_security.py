@@ -219,13 +219,32 @@ def test_sso_userinfo_wins_over_the_id_token_and_no_claims_at_all_fail(anonymous
 
     query("UPDATE users SET email='demo@example.com' WHERE username='demo'")
     token = {"access_token": "at", "id_token": id_token({"sub": "from-id-token", "aud": "ophir-figures", "exp": time.time() + 300})}
-    response, _ = sso_callback(anonymous, monkeypatch, token, {"sub": "from-userinfo", "email": "demo@example.com"})
+    response, _ = sso_callback(anonymous, monkeypatch, token, {"sub": "from-userinfo", "email": "demo@example.com", "email_verified": True})
     assert response.headers["Location"].endswith("/")
     assert query("SELECT oauth_subject s FROM users WHERE username='demo'")[0]["s"] == "from-userinfo"
 
     fresh = ophir_figures.app.test_client()
     refused, _ = sso_callback(fresh, monkeypatch, {"access_token": "at"}, ophir_figures.auth.OAuthConfigError("403"))
     assert refused.headers["Location"].endswith("/login?error=provider_error")
+
+
+def test_sso_only_counts_an_email_the_provider_says_it_verified():
+    """Google sends email_verified true (its older endpoints the string "true"); Authentik from
+    2025.10 on sends false unless a scope mapping vouches for the address."""
+    verified = ophir_figures.auth.email_is_verified
+    assert verified({"email_verified": True}) and verified({"email_verified": "true"}) and verified({"email_verified": "True"})
+    for claims in ({}, {"email_verified": None}, {"email_verified": False}, {"email_verified": "false"}, {"email_verified": 1}, {"email_verified": "yes"}):
+        assert not verified(claims), claims
+
+
+def test_sso_without_email_verified_does_not_take_over_an_account(anonymous, monkeypatch):
+    """A provider that sends no email_verified claim at all must not count as having verified the
+    address, or anyone who could set that address at the provider would get the matching account."""
+    query("UPDATE users SET email='admin@example.com' WHERE username='admin'")
+    response, _ = sso_callback(anonymous, monkeypatch, {"access_token": "at"}, {"sub": "attacker", "email": "admin@example.com"})
+    assert response.headers["Location"].endswith("/login?error=no_account")
+    assert query("SELECT oauth_subject s FROM users WHERE username='admin'")[0]["s"] == ""
+    assert anonymous.get("/api/bootstrap").status_code == 401
 
 
 def test_an_id_token_for_someone_else_or_out_of_date_is_not_used():

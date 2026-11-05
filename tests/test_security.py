@@ -5,6 +5,7 @@ import json
 import runpy
 
 import pytest
+from flask.sessions import SecureCookieSessionInterface
 
 from conftest import DEMO, MIKU, ROOT, ophir_figures, png_bytes, query
 
@@ -64,6 +65,20 @@ def test_session_cookie_is_samesite_lax(anonymous):
     response = anonymous.post("/login", data={"username": DEMO[0], "password": DEMO[1]})
     cookie = response.headers["Set-Cookie"]
     assert "SameSite=Lax" in cookie and "HttpOnly" in cookie
+    assert cookie.startswith("ophir_figures_session="), "not Flask's 'session', which another app on the host would overwrite"
+
+
+def test_a_session_another_app_signed_with_the_same_key_is_refused(anonymous):
+    """Ophir Cards may run with the same SECRET_KEY. Its cookies are signed with Flask's default
+    salt; one of them must not sign anybody in here."""
+    other_app = SecureCookieSessionInterface().get_signing_serializer(ophir_figures.app)
+    user_id = query("SELECT id FROM users WHERE username = ?", (DEMO[0],))[0]["id"]
+    anonymous.set_cookie("ophir_figures_session", other_app.dumps({"user_id": user_id}))
+    assert anonymous.get("/api/bootstrap").status_code == 401
+
+    own = ophir_figures.app.session_interface.get_signing_serializer(ophir_figures.app)
+    anonymous.set_cookie("ophir_figures_session", own.dumps({"user_id": user_id}))
+    assert anonymous.get("/api/bootstrap").status_code == 200, "the same session signed by this app works"
 
 
 def test_cross_site_writes_are_rejected(client):

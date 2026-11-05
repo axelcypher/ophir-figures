@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import orjson
 from flask import Flask, g, jsonify, redirect, request, session, url_for
 from flask.json.provider import DefaultJSONProvider
+from flask.sessions import SecureCookieSessionInterface
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import migrations, search
@@ -72,6 +73,20 @@ if os.environ.get("TRUST_PROXY_HEADERS", "").lower() in ("1", "true", "yes"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # Explicit instead of relying on each browser's own default for cookies without the attribute.
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+
+class SessionCookies(SecureCookieSessionInterface):
+    """Flask's signed session cookie with a salt of its own. The key may be shared with Ophir Cards
+    (DeckLedger), another Flask app: with Flask's default salt, a session cookie signed there --
+    say {"user_id": 1} -- would be valid here too and open the account with that id."""
+
+    salt = "ophir-figures-session"
+
+
+app.session_interface = SessionCookies()
+# Not Flask's "session": another app on the same host (e.g. Ophir Cards next to /figures) would
+# overwrite it, signing the user out of one app whenever they open the other.
+app.config["SESSION_COOKIE_NAME"] = "ophir_figures_session"
 
 
 def require_secret_key(debug=False):

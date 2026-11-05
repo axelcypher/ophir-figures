@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090909">
+  {# Shared by link, not meant to be found: search engines are asked to leave it out. #}
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% if name %}{{ name }} · Sammlung{% else %}Profil nicht gefunden{% endif %} · Ophir Figures</title>
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="{{ asset_url('app.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('mobile-theme.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('mobile-pages.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('responsive-theme.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('dark-appearance.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('design-system.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('figures.css') }}">
+  <link rel="stylesheet" href="{{ asset_url('public.css') }}">
+</head>
+<body class="dark mobile-modern public-page{% if theme == 'light' %} mobile-light{% endif %}" data-theme="{{ theme }}">
+  {# The owner's choice (Settings); with "auto" what the visitor's system asks for, and it follows a change. #}
+  {% if theme == 'auto' %}<script>(function(){var query=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');var apply=function(){document.body.classList.toggle('mobile-light',!(query&&query.matches))};apply();if(query&&query.addEventListener)query.addEventListener('change',apply)})();</script>{% endif %}
+  <header class="public-topbar">
+    <span class="public-brand"><svg class="brand-symbol" viewBox="0 0 44 44" aria-hidden="true"><circle class="brand-card-spark" cx="22" cy="11.5" r="5"/><path class="brand-card-front" d="M14 33c.6-8.2 3.4-14.5 8-14.5s7.4 6.3 8 14.5"/><path class="brand-card-line" d="M10.5 37.5h23"/></svg><b>OPHIR</b>FIGURES</span>
+  </header>
+  <main class="content public-content" id="content" data-slug="{{ slug }}">
+    {% if missing %}
+    <div class="empty-state public-missing"><b>Dieses Profil gibt es nicht</b><span>Vielleicht ist der Link falsch oder die Sammlung wird nicht mehr geteilt.</span></div>
+    {% else %}
+    <div class="page-loader"><span></span><p>Sammlung wird geladen …</p></div>
+    {% endif %}
+  </main>
+  {% if not missing %}<script src="{{ asset_url('public.js') }}"></script>{% endif %}
+</body>
+</html>

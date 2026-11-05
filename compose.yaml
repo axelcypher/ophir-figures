@@ -1,0 +1,19 @@
+services:
+  ophir-figures:
+    build: .
+    image: ghcr.io/axelcypher/ophir-figures:latest
+    container_name: ophirfigures
+    restart: unless-stopped
+    ports:
+      - "18082:8080"
+    environment:
+      DATABASE_PATH: /data/ophir-figures.db
+      SECRET_KEY: ${SECRET_KEY:-ophir-figures-local-development-key}
+      # TRUST_PROXY_HEADERS: "true"  # only behind a TLS-terminating reverse proxy, see README
+      # PUBLIC_PROFILE_URL: https://ophirfigures.example.org  # the public address profile links are built on
+    volumes:
+      - ophir_figures_data:/data
+      # - ./oauth.json:/config/oauth.json:ro  # optional SSO config file, see README
+
+volumes:
+  ophir_figures_data:

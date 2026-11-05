@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.DS_Store
+*.db
+*.db-*
+figure-images
+figure-thumbnails
+.env
+tests
+pytest.ini
+requirements-dev.txt
+.pytest_cache
+.github
+docs

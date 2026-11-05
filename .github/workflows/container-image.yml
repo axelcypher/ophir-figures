@@ -1,0 +1,211 @@
+name: Build and publish container image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: container-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # The JS-based actions here (docker/metadata-action, actions/checkout, actions/attest, ...)
+  # talk to api.github.com through Node's own bundled CA list, not the runner OS's trust store.
+  # On a runner sitting behind a TLS-inspecting proxy (e.g. a self-hosted runner in a network
+  # with its own internal/corporate root CA), that CA is usually already trusted at the OS level
+  # -- confirmed by `docker` itself working fine while only the Node-based steps fail with
+  # "self-signed certificate" -- but Node doesn't consult it unless told to. --use-system-ca
+  # (Node 22+; this workflow runs Node 24) closes that gap. Harmless on a genuine GitHub-hosted
+  # runner with no such proxy: it just adds the OS store, which has nothing extra to offer there.
+  NODE_OPTIONS: --use-system-ca
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run test suite
+        run: python -m pytest
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      # The frontend in a headless Chrome (preinstalled on the runner) against the test catalogue.
+      - name: Run frontend tests
+        run: node --test "tests/frontend/*.test.mjs"
+        env:
+          OPHIR_PYTHON: python
+
+  build:
+    name: Build container image
+    # No image is published from a commit whose tests fail.
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      published_tag: ${{ steps.published_tag.outputs.tag }}
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4 # v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export immutable image tag
+        id: published_tag
+        if: github.event_name != 'pull_request'
+        run: |
+          test -n "$GITHUB_SHA"
+          echo "tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest published image
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  update-deployment-repository:
+    name: Update deployment image tag
+    needs: build
+    if: >-
+      ${{
+        github.event_name != 'pull_request' &&
+        vars.OPHIR_FIGURES_DEPLOY_REPOSITORY != '' &&
+        (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TARGET_REPOSITORY: ${{ vars.OPHIR_FIGURES_DEPLOY_REPOSITORY }}
+      TARGET_BRANCH: ${{ vars.OPHIR_FIGURES_DEPLOY_BRANCH || 'main' }}
+      TARGET_ENV_FILE: ${{ vars.OPHIR_FIGURES_DEPLOY_ENV_FILE || '.env' }}
+      TARGET_IMAGE_KEY: ${{ vars.OPHIR_FIGURES_DEPLOY_IMAGE_KEY || 'OPHIR_FIGURES_IMAGE_VERSION' }}
+      IMAGE_TAG: ${{ needs.build.outputs.published_tag }}
+
+    steps:
+      - name: Check out deployment repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ env.TARGET_REPOSITORY }}
+          ref: ${{ env.TARGET_BRANCH }}
+          token: ${{ secrets.OPHIR_FIGURES_DEPLOY_TOKEN }}
+          path: deployment-repository
+
+      - name: Update Ophir Figures image in environment file
+        working-directory: deployment-repository
+        shell: bash
+        run: |
+          if [[ ! "$TARGET_IMAGE_KEY" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            echo "Invalid environment variable name: $TARGET_IMAGE_KEY" >&2
+            exit 1
+          fi
+
+          case "$TARGET_ENV_FILE" in
+            ""|/*|../*|*/../*|*/..)
+              echo "The environment file must be a safe repository-relative path." >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ ! -f "$TARGET_ENV_FILE" ]]; then
+            echo "Environment file not found: $TARGET_ENV_FILE" >&2
+            exit 1
+          fi
+
+          temporary_file="$(mktemp)"
+          awk -v key="$TARGET_IMAGE_KEY" -v value="$IMAGE_TAG" '
+            BEGIN { updated = 0 }
+            $0 ~ "^" key "=" {
+              if (!updated) print key "=" value
+              updated = 1
+              next
+            }
+            { print }
+            END {
+              if (!updated) print key "=" value
+            }
+          ' "$TARGET_ENV_FILE" > "$temporary_file"
+          mv "$temporary_file" "$TARGET_ENV_FILE"
+
+      - name: Commit and push deployment update
+        working-directory: deployment-repository
+        shell: bash
+        run: |
+          git add -- "$TARGET_ENV_FILE"
+          if git diff --cached --quiet; then
+            echo "Deployment repository already references image tag $IMAGE_TAG"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: deploy Ophir Figures ${GITHUB_SHA::12}"
+          git push origin "HEAD:$TARGET_BRANCH"

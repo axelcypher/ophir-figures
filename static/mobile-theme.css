@@ -1,0 +1,868 @@
+/* Mobile-only alternate theme ("modern"). Everything here is scoped inside
+   @media(max-width:760px) AND requires body.dark.mobile-modern -- it has
+   zero effect on desktop (even though mobile-modern is the default class),
+   and zero effect when the user picks "Klassisch" in Einstellungen.
+
+   Phase 1: design tokens, bottom tab bar, and a visual reskin (color/type/
+   shape) of the existing dashboard + shared components. Per-screen content
+   redesigns (card detail podium, collection highlights/recent list, deck
+   builder groups) are a later phase once this direction is confirmed.
+
+   Token strategy: redefine the SAME shared custom properties the existing
+   dark theme already uses (--bg/--surface/--surface-2/--ink/--muted/--line/
+   --brand/--brand-2), not just new --mt-* ones. app.css has ~130 ".dark X"
+   rules; most of them read these shared tokens, so overriding the tokens
+   themselves reskins those rules for free. Rules that hardcode a hex value
+   instead of a token won't pick this up automatically -- those get a
+   targeted override below as they're found during visual QA. --mt-* extras
+   below are for the new markup this file introduces (tab bar etc.), where a
+   distinct name is clearer than reusing the shared ones. */
+
+.mobile-tabbar { display: none; }
+
+@media (max-width: 760px) {
+  body.dark.mobile-modern {
+    --bg: #121210; --surface: #1a1a17; --surface-2: #22221e; --ink: #f0eadc; --muted: #9c9585;
+    --line: #2e2d27; --brand: #d8b46c; --brand-2: #ecd49b;
+    --mt-accent-soft: rgba(216,180,108,.14);
+    --mt-gold: #d8b46c;
+    --mt-shadow: 0 14px 32px rgba(0,0,0,.45);
+    --mt-radius-lg: 24px; --mt-radius-md: 16px; --mt-radius-full: 999px;
+    /* Per explicit spec: UI/body text is sans-serif, headings are serif -- two distinct
+       families, not the same one used for everything. */
+    --font-display: "Cormorant Garamond", Georgia, serif;
+    --font-ui: "Inter", sans-serif;
+    font-family: var(--font-ui);
+    --mt-podium: radial-gradient(ellipse 26% 30% at 14% 82%, rgba(255,255,255,.16), transparent 70%),
+                 radial-gradient(ellipse 26% 30% at 86% 82%, rgba(255,255,255,.16), transparent 70%),
+                 radial-gradient(ellipse 60% 44% at 50% 54%, rgba(216,180,108,.32), transparent 68%),
+                 radial-gradient(ellipse 66% 24% at 50% 88%, rgba(212,176,106,.35), transparent 68%);
+    --mt-tab-track: #0b0b0a;
+    /* Stage background is two zones (see the long comment on .stage-backdrop below):
+       --mt-stage-plate/--mt-stage-top are the vertical gradient's dark(at the platform)-to-
+       light(going up) stops; --mt-stage-outer is the flat single color of the region the
+       elliptical hard edge reveals below/behind the platform.
+       Bug fix: this was previously an invented contrast color (first identical to
+       --mt-stage-plate, invisible; then pure black/brown, visible but wrong) -- the actual
+       spec was always that zone 2 is the SAME color as the area below it (.modal-side, where
+       the title+price sit), so the stage's floor blends seamlessly into the info panel
+       instead of reading as a separate tinted box. That's just --bg -- no separate color to
+       invent or keep in sync. */
+    --mt-stage-plate: #060606; --mt-stage-top: #10100e; --mt-stage-outer: var(--bg);
+    background: var(--bg);
+  }
+  /* Light sub-variant: same shapes/type/structure, cream+white palette instead
+     of dark green -- one extra class beats the base block above on specificity. */
+  body.dark.mobile-modern.mobile-light {
+    --bg: #f5f0e6; --surface: #ffffff; --surface-2: #faf6ee; --ink: #24291f; --muted: #8d8879;
+    --line: #e9e2d2; --brand: #1f3a2e; --brand-2: #2c4a3b;
+    --mt-accent-soft: rgba(31,58,46,.09);
+    --mt-gold: #c9a961;
+    --mt-shadow: 0 12px 28px rgba(40,30,15,.08);
+    --mt-podium: radial-gradient(ellipse 26% 30% at 14% 82%, rgba(255,255,255,.5), transparent 70%),
+                 radial-gradient(ellipse 26% 30% at 86% 82%, rgba(255,255,255,.5), transparent 70%),
+                 radial-gradient(ellipse 56% 40% at 50% 54%, rgba(255,255,255,.95), transparent 60%),
+                 radial-gradient(ellipse 58% 14% at 50% 90%, rgba(60,45,20,.16), transparent 75%);
+    --mt-tab-track: #e5ddc9;
+    --mt-stage-plate: #cdc3ab; --mt-stage-top: #ede8de; --mt-stage-outer: var(--bg);
+  }
+  /* The stage stays light in the dark appearance too (see responsive-theme.css). On the phone
+     the floor below the platform keeps the page's own colour, so the stage still runs into the
+     panel underneath without a seam. */
+  body.dark.mobile-modern:not(.mobile-light) .card-stage {
+    --surface: #ffffff; --surface-2: #faf6ee; --ink: #24291f; --muted: #8d8879; --line: #e9e2d2; --brand: #1f3a2e;
+    --mt-stage-plate: #cdc3ab; --mt-stage-top: #ede8de;
+    --mt-podium: radial-gradient(ellipse 26% 30% at 14% 82%, rgba(255,255,255,.5), transparent 70%),
+                 radial-gradient(ellipse 26% 30% at 86% 82%, rgba(255,255,255,.5), transparent 70%),
+                 radial-gradient(ellipse 56% 40% at 50% 54%, rgba(255,255,255,.95), transparent 60%),
+                 radial-gradient(ellipse 58% 14% at 50% 90%, rgba(60,45,20,.16), transparent 75%);
+  }
+
+  /* ---- App shell: hide the desktop sidebar/topbar chrome the tab bar replaces ---- */
+  body.dark.mobile-modern .app-shell { padding-left: 0; }
+  body.dark.mobile-modern .sidebar { display: none; }
+  body.dark.mobile-modern .topbar { height: 58px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  body.dark.mobile-modern .content { padding: 16px 16px 100px; background: var(--bg); color: var(--ink); }
+  body.dark.mobile-modern .topbar .global-search {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--mt-radius-full); color: var(--muted);
+  }
+  body.dark.mobile-modern .topbar .global-game-filter {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--mt-radius-full); color: var(--ink);
+    appearance: none; -webkit-appearance: none;
+  }
+
+  /* ---- Bottom tab bar ---- */
+  body.dark.mobile-modern .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    justify-content: space-around; align-items: center;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--surface); border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(40,30,15,.06);
+  }
+  body.dark.mobile-modern .mt-tab {
+    position: relative; display: grid; place-items: center; width: 44px; height: 44px;
+    border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: var(--mt-radius-full);
+  }
+  body.dark.mobile-modern .mt-tab svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  body.dark.mobile-modern .mt-tab.active { color: var(--brand); }
+  body.dark.mobile-modern .mt-tab.active svg { fill: var(--mt-accent-soft); }
+  body.dark.mobile-modern .mt-tab-add { width: 52px; height: 52px; background: var(--brand); color: #fff; box-shadow: 0 8px 18px rgba(31,58,46,.35); }
+  body.dark.mobile-modern .mt-tab-add svg { width: 22px; height: 22px; stroke-width: 2; }
+  body.dark.mobile-modern .mt-badge {
+    position: absolute; top: 3px; right: 3px; min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: var(--mt-radius-full); background: var(--mt-gold); color: #24291f;
+    font-size: 9px; font-weight: 800; line-height: 15px; text-align: center;
+  }
+  body.dark.mobile-modern .mt-badge.hidden { display: none; }
+
+  /* ---- Typography ---- */
+  body.dark.mobile-modern .dashboard-hero h1, body.dark.mobile-modern .page-head h1, body.dark.mobile-modern .set-compact-title h1 {
+    font-family: var(--font-display); font-weight: 500; color: var(--ink); letter-spacing: -.01em;
+  }
+
+  /* ---- Dashboard reskin ---- */
+  body.dark.mobile-modern .dashboard-hero {
+    padding: 22px 20px; border-radius: var(--mt-radius-lg); background: var(--surface);
+    border: 1px solid var(--line); box-shadow: var(--mt-shadow); color: var(--ink); min-height: 0;
+  }
+  body.dark.mobile-modern .dashboard-hero p { color: var(--muted); }
+  body.dark.mobile-modern .hero-summary div b { color: var(--brand); }
+  body.dark.mobile-modern .hero-summary div span { color: var(--muted); }
+  body.dark.mobile-modern .game-tile {
+    min-height: 0; background: var(--surface); border: 0; box-shadow: var(--mt-shadow),inset 0 0 0 1px var(--line);
+    border-radius: var(--mt-radius-lg); color: var(--ink);
+  }
+  body.dark.mobile-modern .game-main-stat b { color: var(--brand); font-family: var(--font-display); }
+  body.dark.mobile-modern .progress-track { background: var(--mt-accent-soft); }
+  body.dark.mobile-modern .progress-track span { background: var(--brand); }
+
+  /* ---- Buttons / inputs, broadly ---- */
+  body.dark.mobile-modern .primary-button { background: var(--brand); color: #0e130d; border-radius: var(--mt-radius-full); font-weight: 700; }
+  body.dark.mobile-modern .secondary-button { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: var(--mt-radius-full); }
+  body.dark.mobile-modern .card-tile { border-radius: var(--mt-radius-md); }
+  body.dark.mobile-modern .card-tile .card-info { color: var(--ink); }
+
+  /* ---- Card detail modal ---- */
+  /* Bug fix ("the footer bar still scrolls with the page"): .overlay (the fixed, full-viewport
+     wrapper around .card-dialog) has backdrop-filter:blur() in app.css. filter/backdrop-filter
+     on an ancestor establishes a new containing block for position:fixed descendants -- same
+     category as transform/perspective/will-change -- so .modal-action-bar's position:fixed was
+     anchoring to .overlay's box, not the true viewport. .overlay is ALSO the scrolling
+     container (overflow:auto) for the modal's content, and that combination is a known class of
+     real rendering bug on mobile engines (a fixed descendant of a scrolling, containing-block-
+     establishing ancestor visually tracking that ancestor's scroll instead of staying pinned),
+     which matches the reported symptom exactly. Safe to drop entirely on mobile: .card-dialog
+     is width:100%/min-height:100vh here, covering the overlay completely, so there's no visible
+     backdrop left for the blur to affect in the first place -- pure side-effect removal. */
+  body.dark.mobile-modern .overlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body.dark.mobile-modern .card-dialog { background: var(--bg); }
+  /* The 60px control header above .card-stage used to expose --bg while the stage begins with
+     --mt-stage-top, producing a thin hard seam between two nearly-identical tones. Paint that
+     header from the same stage-top color so the transition is continuous. Opaque modal-side
+     content below the stage keeps its own --bg surface. */
+  body.dark.mobile-modern .card-modal-layout {
+    padding-top: 60px;
+    background: linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.1)),var(--mt-stage-top);
+  }
+  /* ... which in the dark appearance is the stage's own light tone, not the page's. */
+  body.dark.mobile-modern:not(.mobile-light) .card-modal-layout { --mt-stage-top: #ede8de; }
+  body.dark.mobile-modern .card-stage {
+    /* height/min-height override the classic-mobile rule's 49vh/390px (app.css) -- shrinking
+       the stage moves the platform (bottom:10%, percentage-based) proportionally closer to
+       the stage's own bottom edge, which is what actually closes the gap to modal-head below
+       it -- .card-stage's own padding no longer does that, since every child inside is now
+       position:absolute and positioned off percentages of the full padding box (inset:0 /
+       bottom:X% / top:X%), not off in-flow layout that padding would shrink. */
+    position: relative; padding: 64px 40px 36px; overflow: visible; margin-top: 0;
+    /* The card scales from stage width while the old 340px minimum only considered height.
+       On wide/short viewports that let the card grow upward past the intended top clearance.
+       This linear minimum follows the same 65%-width, 5:7 card ratio and the responsive plate
+       contact point, preserving roughly 24px above the card. */
+    height: 44vh; min-height: max(340px, calc(105.5vw - 52px));
+  }
+  /* At ~604px the card reaches its 340px width cap. Beyond that point only the plate keeps
+     growing, so use the capped-card branch instead of continuing the first linear formula. */
+  @media (min-width: 604px) {
+    body.dark.mobile-modern .card-stage { min-height: max(340px, calc(532px + 8.7vw)); }
+  }
+  /* Two-zone background, per detailed feedback:
+     Zone 1 (--mt-stage-plate -> --mt-stage-top): a vertical gradient that's dark AT the
+     platform and lightens going UP.
+     Zone 2 (--mt-stage-outer): a flat single color for the area below/behind the platform,
+     meeting zone 1 at a HARD edge (no fade) shaped like the platform's own ellipse -- it
+     starts at the screen edges at the height of the platform's side vertices (its widest
+     point, Y=85.5% down from the stage top -- same value as .card-stage::after's own
+     vertical center: bottom:10%+height:9%/2) and arcs up to peak exactly at the platform's
+     own top/front vertex (Y=81%, matching .card-stage::after's own top edge: bottom:10%+9%).
+     A masked radial-gradient can't express this: "inside an ellipse" is a bounded lens, not
+     "everything above a curve" -- above the lens's own top point the mask is transparent too,
+     which is why the previous attempt only ever showed a thin sliver near the platform.
+     Built instead as two OPAQUE zone-2 shapes stacked on top of zone-1's full-bleed gradient:
+     a flat rectangle for the bulk of the area (::before) plus an ellipse the exact width of
+     the stage -- so its own side-vertices land precisely on the screen edges at the same
+     86% height -- layered on top to punch the curved edge up to the platform's 82% peak
+     (::after). Where the opaque shapes exist they simply cover zone 1; where they don't,
+     zone 1's gradient shows straight through. */
+  body.dark.mobile-modern .stage-backdrop {
+    display: block; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      linear-gradient(to top,rgba(0,0,0,.05),rgba(0,0,0,.1)),
+      linear-gradient(to top,var(--mt-stage-plate),var(--mt-stage-top) 85%);
+  }
+  /* Correction: zone 2's edge used to land exactly ON the plate's own vertices (same 81%/
+     85.5% numbers as .card-stage::after), so it visually ran straight into the plate's own
+     edge with no separation. Shifted down 6px (both shapes, same offset, so the curve stays
+     the plate's own shape -- just moved) so zone 2 sits a few px BELOW the glass surface
+     instead of touching it. */
+  body.dark.mobile-modern .stage-backdrop::before {
+    content: ""; position: absolute; left: 0; right: 0;
+    top: var(--plate-edge-center-y, calc(85.5% + 6px)); bottom: 0;
+    background: var(--mt-stage-outer);
+  }
+  body.dark.mobile-modern .stage-backdrop::after {
+    content: ""; position: absolute; left: 0;
+    top: var(--plate-edge-top-y, calc(81% + 6px)); width: 100%;
+    height: var(--plate-edge-height, 9%);
+    border-radius: 50%; background: var(--mt-stage-outer);
+  }
+  body.dark.mobile-modern .card-stage::before {
+    /* ambient glow: center accent + two side "spotlights" at platform height, per reference */
+    content: ""; position: absolute; left: 50%; top: 58%; width: 92%; height: 44%;
+    transform: translate(-50%, -50%); border-radius: 50%; z-index: 0;
+    background: var(--mt-podium); background-repeat: no-repeat;
+  }
+  /* The platform is now a real SVG element (.stage-platform-svg, markup in the scripts in static/js) instead of
+     a CSS pseudo-element. Every previous approach (box-shadow rim, border-bottom extrusion,
+     CSS-only "acrylic" gradients) was fundamentally faking a 3D shape out of a flat 2D box.
+     SVG can just draw the actual geometry instead: a top ellipse (the surface) plus a path
+     for the front-facing curved wall between it and a second, lower ellipse -- a real cylinder
+     cross-section, not an illusion of one. Positioning/effects for it are below, near the
+     flare rules, since conceptually they're part of the same "platform" visual group now. */
+  body.dark.mobile-modern .stage-platform-wrap {
+    /* The user-supplied glass-plate.svg (public/glass-plate.svg, served directly via the
+       /glass-plate.svg backend route) replaces the hand-built SVG cylinder entirely. It's a
+       real asset (a wrapped raster image, 500x79 viewBox) so width:92% with height:auto keeps
+       its own real aspect ratio instead of guessed viewBox math.
+       Bottom offset lowered from the old plate's bottom:10% -- sat too high.
+       This wrapper carries the position/size/shadow that used to live directly on the <img>;
+       the img itself is now just position:static, full width -- a wrapper is needed because
+       generated content (::after) doesn't render on replaced elements like <img> per spec, so
+       the tint overlay below (which needs to be an ::after) has to live one level up. */
+    display: block; position: absolute; left: 50%; bottom: 6%; width: 92%;
+    transform: translateX(-50%); z-index: 1; pointer-events: none;
+    /* Two shadows following the plate's own bottom contour -- filter:drop-shadow (not
+       box-shadow), since box-shadow only ever traces the element's rectangular border-box,
+       not the actual visible alpha shape of an irregular image like this one. Order matters:
+       each successive drop-shadow shadows the OUTPUT of the previous step (source + its
+       shadow), not just the original -- listed white-then-dark so the thin white rim shadow
+       stays tight/close, while the dark one sits behind it.
+       Bug fix: the dark shadow's positive y-offset (6px) pushed its visible extent well below
+       the white shadow's (1px offset, 2px total reach) -- it stuck out underneath instead of
+       reading as shading right at the plate's own underside. Negative offset moves it upward
+       instead; blur kept small enough that its own downward reach (offset+blur) stays inside
+       the white shadow's, so it no longer overhangs past it.
+       White shadow widened further per follow-up feedback (offset+blur both bumped) -- still
+       comfortably ahead of the dark shadow's own downward reach (-2+3 = 1px) above. */
+    filter: drop-shadow(0 3px 3px rgba(255,255,255,.55)) drop-shadow(0 -2px 3px rgba(0,0,0,.2));
+  }
+  body.dark.mobile-modern .stage-platform-svg {
+    display: block; position: static; width: 100%; height: auto;
+  }
+  /* Warm glass tint. The alpha mask confines it to the plate asset; low-opacity multiply also
+     affects its near-white highlights, unlike color/soft-light blending which left the coldest
+     white pixels effectively unchanged. */
+  body.dark.mobile-modern .stage-platform-wrap::after {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    background: #d8b97b; mix-blend-mode: multiply; opacity: .26;
+    mask-image: url(/glass-plate.svg); mask-size: 100% 100%; mask-repeat: no-repeat;
+    -webkit-mask-image: url(/glass-plate.svg); -webkit-mask-size: 100% 100%; -webkit-mask-repeat: no-repeat;
+  }
+  /* The two "Strahler" (spotlights) from the reference: soft white bloom at the platform's
+     left and right edge, at platform height. Correction: dropped the repeating-conic-gradient
+     ray/streak pattern entirely -- "keine radialen Linien" -- down to just a soft radial
+     glow (bright core fading smoothly to transparent), consistent with "weiche weiße
+     Highlights" rather than a graphic starburst. mix-blend-mode:screen so it reads as light
+     being ADDED on top of both the platform and the background behind it, not a flat shape
+     painted over them.
+     These still need a host element to hang the two ::before/::after flares off of --
+     .card-stage::after is itself a pseudo-element and can't have pseudo-elements of its own
+     (no ::after::before in CSS), so a real DOM node is unavoidable for this part specifically.
+     The difference from the old .stage-platform-rim: THIS element has no background, border,
+     box-shadow or fill of its own. Its pixel geometry is copied from the rendered plate by
+     alignReflectionMask(), so the flares remain attached to that asset instead of following
+     separate stage-relative percentages. */
+  body.dark.mobile-modern .stage-flare-anchor {
+    /* Bug fix: z-index on a child pseudo-element only orders it within ITS OWN parent's local
+       stacking context -- it doesn't reach past the parent to compete with siblings outside
+       it. This anchor has position+z-index (0), which makes it establish its own stacking
+       context; its ::before/::after (z-index:2) only outrank each other inside that context,
+       while the anchor AS A WHOLE still competes against the plate using ITS OWN z-index (0
+       vs the plate's 1) -- so the whole anchor, flares included, rendered behind the plate.
+       Invisible at the old 5%/95% position since the flares mostly hung off the plate's own
+       edges there with little actual overlap; moving them inward (see below) put most of
+       their area squarely over the plate, where this was actually visible as "gone". Fixed by
+       raising the anchor's own z-index to 2, matching what its children were already using
+       locally. */
+    display: block; position: absolute;
+    left: var(--plate-left, 4%); top: var(--plate-top, 81%);
+    width: var(--plate-width, 92%); height: var(--plate-height, 13%);
+    z-index: 2; pointer-events: none;
+  }
+  /* Directional spotlight bloom behind each ray burst. Its source stays at the flare point,
+     while JS derives the angle and length from that source to the card's upper midpoint.
+     Keeping the transform origin at 80% lets the glow continue below the source as well as
+     travel diagonally inward/upward. Brightness remains capped at 80%. */
+  body.dark.mobile-modern .stage-flare-anchor::before,
+  body.dark.mobile-modern .stage-flare-anchor::after {
+    content: ""; position: absolute; top: calc(var(--flare-edge-local-y, 26%) - 5px);
+    width: var(--spotlight-width, 190px); height: var(--spotlight-height, 420px);
+    z-index: 1;
+    background: radial-gradient(ellipse 62% 88% at var(--spotlight-source-x) 80%,
+      rgba(255,255,255,.8) 0%, rgba(255,255,255,.52) 12%,
+      rgba(255,255,255,.23) 32%, rgba(255,255,255,.08) 58%, transparent 80%);
+    filter: blur(4px); pointer-events: none;
+  }
+  body.dark.mobile-modern .stage-flare-anchor::before {
+    --spotlight-source-x: 30%; left: 10%; transform-origin: 30% 80%;
+    transform: translate(-30%,-80%) rotate(var(--spotlight-left-angle, 28deg));
+  }
+  body.dark.mobile-modern .stage-flare-anchor::after {
+    --spotlight-source-x: 70%; left: 90%; transform-origin: 70% 80%;
+    transform: translate(-70%,-80%) rotate(var(--spotlight-right-angle, -28deg));
+  }
+  /* Lens-flare bursts: a compact hot core plus deliberately irregular rays. Each ray has its
+     own angle, length, opacity and occasional thickness (markup in renderCardModal), avoiding
+     the mechanical symmetry of a repeating conic gradient. Horizontally they remain inset at
+     10/90% of the plate; their vertical position is calculated against the visible upper edge
+     of stage-backdrop::after at those exact x coordinates. */
+  body.dark.mobile-modern .stage-flare {
+    position: absolute; top: calc(var(--flare-edge-local-y, 26%) - 5px); width: 1px; height: 1px; z-index: 2;
+    mix-blend-mode: screen; pointer-events: none;
+  }
+  body.dark.mobile-modern .stage-flare.left { left: 10%; }
+  body.dark.mobile-modern .stage-flare.right { left: 90%; }
+  body.dark.mobile-modern .stage-flare::before {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 112px; height: 112px;
+    transform: translate(-50%,-50%); border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.95) 0 3%, rgba(255,255,255,.58) 8%,
+      rgba(255,255,255,.2) 28%, rgba(255,255,255,.05) 52%, transparent 72%);
+    filter: blur(1.5px);
+  }
+  body.dark.mobile-modern .stage-flare::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    transform: translate(-50%,-50%); border-radius: 50%;
+    background: radial-gradient(circle, #fff 0 8%, rgba(255,255,255,.96) 16%,
+      rgba(255,255,255,.45) 38%, transparent 72%);
+    box-shadow: 0 0 8px 2px rgba(255,255,255,.55), 0 0 22px 5px rgba(255,255,255,.22);
+  }
+  body.dark.mobile-modern .stage-flare i {
+    position: absolute; display: block; left: 0; top: 0;
+    width: var(--ray-length,90px); height: var(--ray-size,1px); transform-origin: 0 50%;
+    transform: translateY(-50%) rotate(var(--ray-angle,0deg)); border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,255,255,var(--ray-alpha,.45)) 0%,
+      rgba(255,255,255,.16) 36%, transparent 100%);
+    filter: blur(.45px); opacity: .9;
+  }
+  /* The two Strahler read as angled inward, converging somewhere above the card -- this is
+     that convergence point: a soft, bright, purely radial glow (no direction/streaks of its
+     own, it's just where the two light sources notionally overlap), positioned above the
+     card's own top edge. Same normal-blend fix as the flares above, same reasoning. */
+  /* Correction: was a small circle only covering the area above the card. Same anchor point
+     (top:6%, left:50%, still centered via translate(-50%,-50%)) but stretched into a tall
+     ellipse extending down far enough to sit behind the card's FULL height (~600px, vs the
+     card's own ~304px, so its downward half comfortably reaches past the card's bottom edge)
+     and a bit wider than the card (260px vs ~217px) so it peeks out at the sides too. z-index
+     dropped below the card wrap's (2) to 1, so the opaque card naturally occludes the middle
+     of the glow -- only the part extending past the card's own edges "shines out" around it,
+     instead of washing out the card art itself. */
+  body.dark.mobile-modern .stage-flare-cross {
+    display: block; position: absolute; left: 50%; top: 6%; width: 260px; height: 600px;
+    transform: translate(-50%, -50%); z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255,255,255,.4),
+      rgba(255,255,255,.18) 35%, rgba(255,255,255,.06) 60%, transparent 78%);
+  }
+  /* .modal-card-frame-wrap is display:contents everywhere by default (app.css) so it's
+     inert on desktop/classic -- .modal-card-frame keeps sizing itself directly against
+     .card-stage's grid track, unaffected by the wrap's own existence in the DOM. Here it
+     needs to be a REAL box instead: a positioning context for the reflection/shadow below
+     (see their comments), sized to match what .modal-card-frame used to size itself to.
+     Bug: giving the wrap display:block without giving it that same width/aspect-ratio would
+     make it a shrink-to-fit box, and then .modal-card-frame's own width:min(340px,70%)
+     (unconditional, from app.css) would resolve against THAT indefinite box instead of the
+     stage -- 70% of a box that's itself sized off the frame's own 70%, compounding down to
+     a much larger rendered card than intended (confirmed: this exact bug shipped once
+     already and had to be caught by re-measuring, not by eyeballing). Wrap now owns the
+     sizing; frame just fills it at 100%.
+     Bug fix: this used to rely on .card-stage's own grid place-items:center, which centers
+     the card within the whole padded stage box -- with no relation to where the platform
+     actually sits, it landed the card's own bottom edge at the platform's FRONT vertex
+     (bottom:10%, its nearest-to-viewer point) instead of centered on the platform. Now
+     positioned directly from the rendered platform contact line supplied by JS, independent
+     of the grid and of the stage's changing aspect ratio.
+     Bug fix: width:70% here does NOT mean the same 70% as before. A percentage width on a
+     position:relative grid item resolves against the CONTENT box of its containing block
+     (padding excluded -- 310px, i.e. the stage's 390px minus its own 40px+40px side
+     padding). A percentage width on a position:absolute element resolves against the
+     PADDING box instead (padding included -- the full 390px). Same "70%" text, two
+     different bases 40px apart per side -- switching to absolute here silently inflated the
+     card from 217px to 273px and pushed it up off the top of the stage. calc() below manually
+     subtracts that 80px of padding back out first; 65% then applies the requested modest size
+     reduction against the original 70% sizing, regardless of positioning scheme. */
+  body.dark.mobile-modern .modal-card-frame-wrap {
+    display: block; position: absolute; left: 50%;
+    top: var(--plate-contact-y, 85.5%); bottom: auto; z-index: 2;
+    transform: translate(-50%, -100%);
+    width: min(340px, calc((100% - 80px) * 0.65)); max-height: 540px; aspect-ratio: 5/7;
+  }
+  body.dark.mobile-modern .modal-card-frame {
+    /* Corner radius reduced 60% from the original 20px, per feedback. */
+    position: relative; width: 100%; height: 100%; max-height: none; aspect-ratio: auto;
+    border-radius: 8px; box-shadow: none;
+  }
+  /* Foil/Prismatic/Aurora effects moved out to static/foil-effects.css -- loaded
+     unconditionally (all themes, all devices), not scoped to mobile-modern here anymore. */
+  /* Removed per feedback: the card's own drop-shadow (was box-shadow above) and its contact
+     shadow on the platform (was this same pseudo-element, a blurred radial-gradient ellipse)
+     piled up into a dark blob right at the platform's front edge. Both cut, not just toned
+     down -- this slot is reused below for the white bloom instead.
+     Bloom: centered ON the card's bottom edge (bottom:0 + translateY(50%) splits it evenly
+     above/below the edge line) at 60% across the card's width, white, capped at 30% opacity. */
+  body.dark.mobile-modern .modal-card-frame-wrap::after {
+    content: ""; position: absolute; left: 60%; bottom: 0; width: 130px; height: 130px;
+    transform: translate(-50%, 50%); z-index: 1; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,255,255,.3), transparent 70%);
+  }
+  /* Backside reflection glow replacing the classic dark card shadow. Two soft white lobes rise
+     from the lower side edges facing the spotlights; the opaque card hides their center so only
+     reflected spill remains around the silhouette. No dark pixels are painted by this layer. */
+  body.dark.mobile-modern .modal-card-frame-wrap::before {
+    content: ""; position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none;
+    width: 150%; height: 136%; transform: translate(-50%, -50%);
+    background:
+      radial-gradient(ellipse 44% 68% at 18% 78%, rgba(255,255,255,.54),
+        rgba(255,255,255,.24) 34%, rgba(255,255,255,.08) 58%, transparent 76%),
+      radial-gradient(ellipse 44% 68% at 82% 78%, rgba(255,255,255,.54),
+        rgba(255,255,255,.24) 34%, rgba(255,255,255,.08) 58%, transparent 76%),
+      radial-gradient(ellipse 52% 54% at 50% 72%, rgba(255,255,255,.18),
+        rgba(255,255,255,.06) 48%, transparent 78%);
+    filter: blur(6px);
+  }
+  /* Actual mirrored card art, not a shine. A stage-sized stationary host owns the glass-side
+     exclusion; nested perspective and mirror layers reproduce the card's projected plane and
+     reflect it around the resting contact line. */
+  body.dark.mobile-modern .modal-card-reflection-mask {
+    /* This is deliberately a separate, untransformed mask host. Previously the SVG cutout
+       lived on the reflected image itself, so CSS rotated the cutout away from the stationary
+       plate during parallax. The image now tilts as a child while this box stays put. */
+    /* Correction: match the reference's effect specifically -- there it's barely a hint, no
+       legible card content, closer to a soft light-fade than an actual mirror. Peak mask
+       opacity dropped from .75 to .18 and the fade shortened (transparent by 30% instead of
+       45%, so it thins out faster) plus a blur so even the visible sliver doesn't read as
+       sharp text.
+       Pulled back down slightly (30%->40%) so a faint hint of it still peeks out from under
+       the two new plate-edge shadows above, instead of having fully faded out before reaching
+       them -- kept minimal, not a return to the original 45%.
+       Chromium does not reliably apply mask-composite here, so the responsibilities remain
+       nested instead: this stationary SVG luminance mask paints a white field and punches out
+       glass_side in black; the transformed child owns only the soft fade. Position/scale of
+       the fixed cutout is computed by alignReflectionMask() from the rendered plate. */
+    /* JS expands this stationary host to the complete stage. The old 28%-high box started at
+       the resting card edge and therefore imposed a horizontal cutoff on a tilted reflection.
+       Stage-sized bounds let the reflected top edge become a real perspective wedge while the
+       SVG mask removes only glass_side. Values here are a no-JS fallback until alignment runs. */
+    display: block; position: absolute; top: 100%; left: 0; width: 100%; height: 28%;
+    z-index: -1;
+    -webkit-mask-image: url(#mt-reflection-mask); mask-image: url(#mt-reflection-mask);
+    pointer-events: none;
+  }
+  body.dark.mobile-modern .modal-card-reflection-mirror,
+  body.dark.mobile-modern .modal-card-reflection-perspective {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  /* Mirror the already-projected card around the glass contact line. Keeping this transform
+     outside the perspective layer produces the exact reflected quadrilateral, including the
+     wedge-shaped separation between two differently sloped lower edges. */
+  body.dark.mobile-modern .modal-card-reflection-mirror { transform: scaleY(-1); }
+  body.dark.mobile-modern .modal-card-reflection-perspective { perspective: 900px; }
+  body.dark.mobile-modern .modal-card-reflection {
+    /* Full card geometry is required to mirror the transformed plane exactly. The local fade
+       below exposes only the narrow strip adjoining the lower card edge. */
+    display: block; position: absolute; inset: auto; width: 100%; height: 100%;
+    /* Parallax tilt (foil-effects.css .card-tilt-zone/.card-tilt, wired in the scripts in static/js): the
+       reflection sits outside .modal-card-frame (a sibling, per the comment above -- has to,
+       since it lives past the frame's own clipped box), so it can't just inherit the card's
+       rotate via being a descendant of it. It's still a descendant of the shared
+       .card-tilt-zone though, so it reads the SAME --tilt-x/--tilt-y and applies the same
+       transform as the card. The parent mirror then reflects the complete projected result
+       across the glass line rather than guessing inverse Euler angles. The same transition
+       (and the same is-dragging opt-out below) as .card-tilt so the two never drift out of
+       sync during a drag. */
+    transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+    transition: transform .4s ease-out;
+    transform-style: preserve-3d; will-change: transform;
+    border-radius: 8px; object-fit: cover; object-position: bottom;
+    filter: blur(2px);
+    /* The reflection fade moves naturally with the reflected image. The separate parent mask
+       handles only the screen-fixed glass-side cutout, so the two operations intersect without
+       relying on Chromium's broken mask-composite path. The old strip faded across 40% of a
+       28%-high crop; on this full-height source that is the same 11.2% from its lower edge. */
+    -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,.18) 0%, transparent 11.2%);
+    mask-image: linear-gradient(to top, rgba(0,0,0,.18) 0%, transparent 11.2%);
+    pointer-events: none;
+  }
+  body.dark.mobile-modern .card-tilt-zone.is-dragging .modal-card-reflection {
+    transition: none;
+  }
+  body.dark.mobile-modern .card-nav-button {
+    z-index: 3; width: 34px; height: 44px; padding: 0;
+    background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    color: var(--muted); font-size: 28px; font-weight: 300;
+  }
+  body.dark.mobile-modern .card-nav-button:disabled { opacity: .18; }
+  /* Cut for this theme: the top/bottom variant-nav hints (e.g. "alt art" printings). The
+     bottom one specifically sat wedged between the platform surface and the stage's own
+     lower edge, an awkward spot given the podium presentation -- and the whole up/down
+     variant-scroll concept is dropped for mobile-modern, not just repositioned. */
+  body.dark.mobile-modern .variant-hint { display: none; }
+
+  /* Close + quick-menu buttons float over the very top of the whole modal (over the card
+     stage), not inside .modal-head -- fixed to the viewport since .card-dialog is full-screen
+     on mobile anyway. Feedback: these were previously anchored to .modal-head, which sits
+     *below* the card art, not at the true top of the screen. */
+  body.dark.mobile-modern .card-modal-layout > .close-button,
+  body.dark.mobile-modern .modal-menu-button {
+    position: fixed; top: calc(14px + env(safe-area-inset-top)); width: 34px; height: 34px;
+    display: grid; place-items: center; border-radius: 50%; background: var(--surface);
+    border: 1px solid var(--line); color: var(--ink); font-size: 16px; z-index: 30; box-shadow: var(--mt-shadow);
+  }
+  body.dark.mobile-modern .card-modal-layout > .close-button { left: 14px; right: auto; font-size: 20px; }
+  body.dark.mobile-modern .modal-quick-menu-wrap { display: block; position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 14px; z-index: 30; }
+  body.dark.mobile-modern .modal-quick-menu-wrap .modal-menu-button { position: static; }
+  body.dark.mobile-modern .modal-quick-menu {
+    position: absolute; top: 42px; right: 0; width: min(340px,calc(100vw - 28px)); max-height: calc(100vh - 78px);
+    overflow-y: auto; padding: 16px; border-radius: var(--mt-radius-md);
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--mt-shadow);
+  }
+  body.dark.mobile-modern .modal-quick-menu.hidden { display: none; }
+  body.dark.mobile-modern .modal-quick-menu .language-switcher { display: flex; gap: 4px; }
+  body.dark.mobile-modern .modal-relationship-title {
+    margin-bottom: 14px; font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  }
+  body.dark.mobile-modern .modal-relationship-popup .relationship:last-child { border-bottom: 0; }
+  body.dark.mobile-modern .modal-head .language-switcher { display: none; } /* lives in the ⋯ menu instead, see above */
+
+  body.dark.mobile-modern .modal-side { background: var(--bg); color: var(--ink); }
+  /* 2-row head, per latest correction (price back with the title, rarity back with the card
+     number): row 1 = title + price; row 2 = set-line (name, card number) + rarity-line
+     (rarity, variant), both right column right-aligned under the price. */
+  body.dark.mobile-modern .modal-head {
+    display: grid; grid-template-columns: 1fr auto; column-gap: 10px; row-gap: 4px;
+    padding: 0 20px 16px; border: 0;
+  }
+  body.dark.mobile-modern .modal-head .eyebrow, body.dark.mobile-modern .modal-head > p { display: none; } /* replaced by the two-line meta grid below */
+  body.dark.mobile-modern .modal-head h2 {
+    grid-column: 1; grid-row: 1; margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 24px; line-height: 1.2; color: var(--ink);
+  }
+  body.dark.mobile-modern .modal-price {
+    /* Same family as the title next to it, symbol-first formatting comes from the JS side
+       (priceSymbolFirst). */
+    grid-column: 2; grid-row: 1; display: block; align-self: start; text-align: right;
+    font-family: var(--font-display); font-weight: 700; font-size: 20px; color: var(--ink); white-space: nowrap;
+  }
+  /* Subtitle half of "<Titel> - <Untertitel>" -- correction: now its own row instead of
+     inline in the title (the same row a price-trend indicator would occupy on the right, if
+     we had one -- we don't, so that cell just stays empty), sized to match that row's scale
+     (matching .modal-set-line's 11px) and back to the serif display font now that it's small
+     meta-text rather than large text competing with the title for attention.
+     Bug fix: the grid's row-gap is a uniform 4px between every row, but the title's own font
+     metrics (24px serif, generous leading) left more *visual* air above the subtitle than
+     below it -- read as if the subtitle belonged with the set-line instead of the title. A
+     negative margin-top pulls it toward the title specifically, without touching the row-gap
+     used between this row and the set-line below (that one wasn't the complaint). */
+  body.dark.mobile-modern .card-title-sub {
+    grid-column: 1; grid-row: 2; display: block; margin-top: -6px;
+    font-family: var(--font-display); font-size: 11px; font-weight: 500; color: var(--muted);
+  }
+  body.dark.mobile-modern .modal-set-line {
+    grid-column: 1; grid-row: 3; display: block; color: var(--muted); font-size: 11px;
+  }
+  body.dark.mobile-modern .modal-rarity-line {
+    /* Smaller than the set-line next to it, matching the reference. */
+    grid-column: 2; grid-row: 3; display: block; color: var(--muted); font-size: 9.5px; text-align: right; white-space: nowrap;
+  }
+  /* Separator dot shared by both meta lines -- feedback: needs more breathing room on each
+     side and needs to be bold, not just a plain inline "·" mid-string. */
+  body.dark.mobile-modern .meta-sep { margin: 0 7px; font-weight: 800; color: var(--muted); }
+  body.dark.mobile-modern .modal-tabs {
+    /* Pill container: explicit height so a fraction of it is a precise, known value instead
+       of guessed against whatever padding+line-height happens to add up to. Radius corrected
+       1/4 -> 1/3 -> 40% of the 40px height (16px now), per successive follow-up feedback.
+       Background: first a flat 6% black tint ("too dark"), then --surface ("too light -- lighter
+       than before is right, but not lighter than the page itself"). --surface is a strictly
+       lighter elevated tone than --bg BY DESIGN in both sub-themes, so it can never satisfy
+       "not lighter than the page" -- no existing token fits both constraints at once. A half-
+       opacity black tint does, by construction: any positive black tint over --bg is
+       mathematically <= --bg's own lightness (satisfies "not lighter than the page"), and half
+       of the original 6% is visibly lighter than what was there before (satisfies "lighter than
+       before"). Same rule works unmodified in both sub-themes, unlike a fixed hex would. */
+    margin: 14px 20px 6px; padding: 2px; gap: 2px; border: 0; height: 34px;
+    border-radius: calc(34px * 0.4); background: rgba(0,0,0,.03);
+  }
+  body.dark.mobile-modern .modal-tabs button {
+    height: 100%; border-radius: calc(34px * 0.4 - 2px); border-bottom: 0; padding: 0 4px; font-size: 9.5px; color: var(--muted);
+  }
+  /* Bug fix: the active pill used --surface, the SAME token the track just switched to above
+     -- would've made the active pill invisible against its own track. It needs to match the
+     page background instead (the complaint this was fixing in the first place: the active
+     pill's own color didn't match the content underneath it). */
+  body.dark.mobile-modern .modal-tabs button.active { background: var(--bg); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+  body.dark.mobile-modern .modal-content { background: var(--bg); padding-top: 4px; padding-bottom: 84px; } /* clears the fixed action bar */
+
+  /* Bottom action bar -- feedback: the watchlist heart belongs down here, not floating
+     top-right (that spot is now the ⋯ menu). Background matches --bg (the page underneath, and
+     the active tab pill) instead of --surface, and the top border is dropped -- both per
+     follow-up feedback asking for the bar to blend into the page rather than read as a
+     separate slab. Scroll-lock bug behind "the bar scrolls with the page": see openOverlay/
+     closeOverlay in js/core.js -- position:fixed itself was never broken. */
+  body.dark.mobile-modern .modal-action-bar {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    padding: 0 20px env(safe-area-inset-bottom); background: var(--bg); border: 0;
+    transform: translateY(min(58vh,520px));
+    transition: transform .3s cubic-bezier(.22,.8,.3,1),box-shadow .22s ease-out;
+  }
+  body.dark.mobile-modern .modal-action-bar.is-expanded {
+    transform: translateY(0); box-shadow: 0 -18px 42px rgba(0,0,0,.14);
+  }
+  body.dark.mobile-modern .modal-footer-actions {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 0;
+  }
+  body.dark.mobile-modern .modal-watch-bottom {
+    width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 18px; cursor: pointer;
+  }
+  body.dark.mobile-modern .modal-watch-bottom.active {
+    border-color:color-mix(in srgb,var(--mt-gold) 34%,var(--line));background:color-mix(in srgb,var(--surface) 94%,var(--mt-gold));color:var(--mt-gold);
+  }
+  body.dark.mobile-modern .modal-footer-quantity {
+    display: flex; flex: 1; align-items: center; height: 44px; overflow: hidden;
+    border: 1px solid var(--line); border-radius: var(--mt-radius-full); background: var(--surface);
+  }
+  body.dark.mobile-modern .modal-footer-quantity-label {
+    display: grid; place-items: center; align-self: stretch; min-width: 72px; padding: 0 13px;
+    border-right: 1px solid var(--line); color: var(--muted); font-size: 10px; font-weight: 650;
+  }
+  body.dark.mobile-modern .modal-footer-quantity button {
+    width: 38px; height: 42px; padding: 0; border: 0; background: none;
+    color: var(--ink); font-size: 18px; cursor: pointer;
+  }
+  body.dark.mobile-modern .modal-footer-quantity b {
+    flex: 1; min-width: 28px; color: var(--ink); text-align: center; font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  body.dark.mobile-modern .modal-footer-quantity .modal-footer-advanced-toggle {
+    width: 34px; height: 30px; margin-left: 2px; padding: 0;
+    border-left: 1px solid var(--line); border-radius: 0; color: var(--muted);
+  }
+  body.dark.mobile-modern .modal-footer-advanced-toggle svg {
+    display: block; width: 16px; height: 16px; margin: auto; fill: none;
+    stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform .22s ease-out;
+  }
+  body.dark.mobile-modern .modal-footer-advanced-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+  /* DOM order is action row first, condition panel second. The panel always reserves its full
+     height; the collapsed bar is translated downward by exactly that height, leaving only the
+     action row visible. Removing that translation moves the row upward and reveals the counters
+     underneath it in one continuous, compositor-driven animation. */
+  body.dark.mobile-modern .modal-footer-advanced {
+    display: block; box-sizing: border-box; height: min(58vh,520px); max-height: min(58vh,520px);
+    overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 16px 0 8px; border: 0;
+    opacity: 1; transition: opacity .2s ease-out;
+  }
+  body.dark.mobile-modern .modal-action-bar:not(.is-expanded) .modal-footer-advanced {
+    overflow: hidden; opacity: 0; pointer-events: none;
+  }
+  /* Desktop/classic keeps these collection controls in the content. Mobile-modern owns them
+     in the fixed footer instead, avoiding two visible representations of the same quantity. */
+  body.dark.mobile-modern .modal-content .modal-quantity,
+  body.dark.mobile-modern .modal-content .advanced-toggle,
+  body.dark.mobile-modern .modal-content #advanced-panel { display: none; }
+  body.dark.mobile-modern .mobile-collection-controls { display: none; }
+  body.dark.mobile-modern .modal-footer-advanced > .detail-section-title:first-child { display: none; }
+  body.dark.mobile-modern .detail-section-title { color: var(--muted); }
+  /* Feedback: too clunky, and app.css's shared ".dark X" rules hardcode a near-black inset
+     box-shadow as a border-replacement technique on this and several other elements below --
+     unconditional on body.dark (always present, mobile-modern or not), so it survived every
+     theme color here regardless of light/dark sub-toggle. box-shadow:none clears it; radius
+     bumped to the theme's own --mt-radius-md instead of the base 8px for a softer look. */
+  body.dark.mobile-modern .variant-option { background: var(--surface); border-color: var(--line); border-radius: var(--mt-radius-md); box-shadow: none; }
+  /* Bug fix: this still set border-color:var(--brand) for the active/selected card -- a solid,
+     fairly dark green ring that read as just another hard border (the exact thing being removed
+     everywhere else). Selected state now reads from the background tint alone, same border as
+     every other card (or none, see below). */
+  body.dark.mobile-modern .variant-option.active { background: var(--mt-accent-soft); border-color: var(--line); }
+  body.dark.mobile-modern .variant-option b { color: var(--ink); }
+  body.dark.mobile-modern .variant-option small { color: var(--muted); }
+  /* Feedback: still too large/clunky -- shrink the thumbnail and tighten padding/gaps/type
+     scale for a denser list-like read instead of the desktop-density card. */
+  body.dark.mobile-modern .variant-selector { gap: 6px; }
+  body.dark.mobile-modern .variant-option { padding: 6px; gap: 6px; }
+  body.dark.mobile-modern .variant-option .variant-thumb { width: 22px; height: 31px; }
+  body.dark.mobile-modern .variant-option b { font-size: 9px; }
+  body.dark.mobile-modern .variant-option small { font-size: 9.5px; }
+  body.dark.mobile-modern .variant-settings { margin: 0 0 14px; border-top: 0; }
+  body.dark.mobile-modern .variant-setting { border-bottom: 1px solid var(--line); }
+  body.dark.mobile-modern .variant-setting:last-child { border-bottom: 0; }
+  body.dark.mobile-modern .variant-setting-row {
+    display: grid; grid-template-columns: 1fr auto 14px; align-items: center; width: 100%; min-height: 34px;
+    padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left;
+  }
+  body.dark.mobile-modern .variant-setting-row span { color: var(--muted); font-size: 9.5px; }
+  body.dark.mobile-modern .variant-setting-row b { font-size: 9.5px; font-weight: 500; }
+  body.dark.mobile-modern .variant-setting-row i {
+    color: var(--muted); font-size: 16px; font-style: normal; text-align: right;
+    transition: transform .2s ease-out;
+  }
+  body.dark.mobile-modern .variant-setting.open .variant-setting-row i { transform: rotate(90deg); }
+  body.dark.mobile-modern .variant-setting-options {
+    display: grid; grid-template-rows: 0fr; opacity: 0;
+    overflow: hidden;
+    transition: grid-template-rows .22s ease-out,opacity .16s ease-out;
+  }
+  body.dark.mobile-modern .variant-setting.open .variant-setting-options { grid-template-rows: 1fr; opacity: 1; }
+  body.dark.mobile-modern .variant-setting-options-inner { min-height: 0; overflow: hidden; }
+  body.dark.mobile-modern .variant-setting .variant-selector { margin: 0; padding: 4px 0 10px; }
+  body.dark.mobile-modern .variant-setting .language-switcher { flex-wrap: wrap; margin: 0; padding: 4px 0 10px; }
+  body.dark.mobile-modern .modal-quantity {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--mt-radius-full); padding: 8px 8px 8px 20px; box-shadow: none;
+  }
+  body.dark.mobile-modern .modal-quantity span b { color: var(--ink); }
+  body.dark.mobile-modern .modal-quantity .controls { background: var(--bg); border-radius: var(--mt-radius-full); border: 0; }
+  body.dark.mobile-modern .modal-quantity .controls button { background: none; color: var(--ink); }
+  body.dark.mobile-modern .modal-quantity .controls b { color: var(--ink); }
+  body.dark.mobile-modern .modal-watch { border-radius: var(--mt-radius-full); }
+  body.dark.mobile-modern .advanced-toggle { border-radius: var(--mt-radius-full); }
+  body.dark.mobile-modern .detail-field { background: var(--surface); border: 1px solid var(--line); border-radius: var(--mt-radius-md); }
+  body.dark.mobile-modern .detail-field span { color: var(--muted); }
+  body.dark.mobile-modern .detail-field b { color: var(--ink); }
+  body.dark.mobile-modern .modal-rules-section { margin: 0 0 14px; }
+  body.dark.mobile-modern .rules-text { margin: 0; color: var(--ink); font-size: 10.5px; line-height: 1.65; }
+  body.dark.mobile-modern .rules-keyword {
+    display: block; width: max-content; max-width: calc(100% + 25px); margin: 0 0 8px -25px;
+    padding: 5px 14px 5px 25px; border-radius: 0 var(--mt-radius-full) var(--mt-radius-full) 0;
+    background: rgba(0,0,0,.03); color: var(--ink); font-size: 9px; line-height: 18px;
+    font-weight: 800; letter-spacing: .055em;
+  }
+  body.dark.mobile-modern .rules-keyword:not(:first-child) { margin-top: 14px; }
+  body.dark.mobile-modern .modal-info-grid {
+    display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 4px; border-top: 1px solid var(--line);
+  }
+  body.dark.mobile-modern .modal-info-grid .detail-field {
+    display: flex; align-items: center; justify-content: space-between; min-height: 38px;
+    padding: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    background: transparent; box-shadow: none;
+  }
+  body.dark.mobile-modern .modal-info-grid .detail-field span { font-size: 9.5px; }
+  body.dark.mobile-modern .modal-info-grid .detail-field b { margin: 0; font-size: 9.5px; font-weight: 500; text-align: right; }
+  body.dark.mobile-modern .modal-info-legality { border-bottom: 0; }
+  body.dark.mobile-modern .modal-info-set,
+  body.dark.mobile-modern .modal-info-rarity,
+  body.dark.mobile-modern .modal-info-source { display: none; }
+  body.dark.mobile-modern .price-hero { background: var(--surface); border: 1px solid var(--line); border-radius: var(--mt-radius-lg); color: var(--ink); }
+  body.dark.mobile-modern .price-hero span { color: var(--muted); }
+  body.dark.mobile-modern .modal-tabs + .modal-content .price-hero { display: none; }
+  body.dark.mobile-modern .market-metrics { margin-top: 0; }
+  body.dark.mobile-modern .market-source-link,
+  body.dark.mobile-modern .modal-info-source {
+    min-height: 42px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--mt-radius-full);
+    background: var(--surface); color: var(--ink); box-shadow: none;
+  }
+  body.dark.mobile-modern .market-source-link:hover,
+  body.dark.mobile-modern .modal-info-source:hover { border-color: var(--line); background: var(--surface-2); }
+  body.dark.mobile-modern .market-source-link { justify-content: center; }
+  body.dark.mobile-modern .market-source-link > span:first-child,
+  body.dark.mobile-modern .market-source-link small { display: none; }
+  body.dark.mobile-modern .market-source-link div { flex: 0 1 auto; text-align: center; }
+  body.dark.mobile-modern .market-source-link b,
+  body.dark.mobile-modern .modal-info-source b { font-size: 9.5px; }
+  body.dark.mobile-modern .price-refresh {
+    height: 42px; border: 0; border-radius: var(--mt-radius-full); background: var(--brand);
+    color: var(--bg); font-size: 10px; font-weight: 750; box-shadow: 0 7px 18px rgba(31,58,46,.13);
+  }
+  /* Both redundant with the heart button already in the bottom action bar -- see feedback. */
+  body.dark.mobile-modern .watchlist-picker { display: none; }
+  /* Sprachversion/Sammlungswert/Datenquelle row -- per feedback, cut entirely (not just
+     restyled). Scoped to this one instance (the scripts in static/js gives it a second, unique class) since the
+     SAME .detail-grid/.detail-field classes are also the "Karte" tab's info grid, which stays. */
+  body.dark.mobile-modern .collection-info-grid { display: none; }
+  /* Advanced ("Erweitert") panel -- same hardcoded-dark-regardless-of-theme bug as
+     .variant-option/.modal-quantity above, just never touched yet because the panel starts
+     collapsed. Confirmed via the light sub-theme specifically (feedback: dark elements while
+     already in the light theme). */
+  body.dark.mobile-modern .condition-rows,
+  body.dark.mobile-modern .graded-rows { gap: 0; margin-bottom: 18px; }
+  body.dark.mobile-modern .condition-row,
+  body.dark.mobile-modern .graded-row {
+    min-height: 48px; padding: 5px 4px; border: 0; border-bottom: 1px solid var(--line);
+    border-radius: 0; background: transparent; color: var(--ink); box-shadow: none;
+    font-size: 11px;
+  }
+  body.dark.mobile-modern .condition-row:first-child,
+  body.dark.mobile-modern .graded-row:first-child { border-top: 0; }
+  body.dark.mobile-modern .condition-row:last-child,
+  body.dark.mobile-modern .graded-row:last-child { border-bottom: 0; }
+  body.dark.mobile-modern .condition-row .controls,
+  body.dark.mobile-modern .graded-row .controls {
+    display: grid; grid-template-columns: repeat(3,1fr); width: 132px; height: 36px;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    background: transparent; box-shadow: 0 1px 3px rgba(24,31,25,.03);
+  }
+  body.dark.mobile-modern .condition-row .controls button,
+  body.dark.mobile-modern .graded-row .controls button {
+    width: auto; height: 34px; padding: 0; border: 0; background: transparent;
+    color: var(--ink); font-size: 16px;
+  }
+  body.dark.mobile-modern .condition-row .controls b,
+  body.dark.mobile-modern .graded-row .controls b {
+    display: grid; place-items: center; min-width: 0; height: 34px;
+    border-right: 1px solid var(--line); border-left: 1px solid var(--line);
+    color: var(--ink); font-size: 11px; font-weight: 500;
+  }
+  body.dark.mobile-modern .condition-row .controls button:disabled { opacity: .28; }
+  body.dark.mobile-modern .graded-row {
+    display: grid; grid-template-columns: minmax(0,1fr) 132px; gap: 5px 12px;
+  }
+  body.dark.mobile-modern .graded-row-label { align-self: center; }
+  body.dark.mobile-modern .graded-price-input {
+    grid-column: 1 / -1; justify-self: end; width: 132px; height: 30px;
+  }
+  body.dark.mobile-modern #footer-advanced-panel #add-graded-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 40px;
+    padding: 0 4px; border: 0; border-radius: 0;
+    background: transparent; color: var(--muted); box-shadow: none; font-size: 10px; text-align: left;
+  }
+  body.dark.mobile-modern #footer-advanced-panel #add-graded-toggle:hover { background: transparent; color: var(--ink); }
+  body.dark.mobile-modern #footer-advanced-panel #add-graded-toggle i {
+    display: grid; place-items: center; width: 28px; height: 28px; color: var(--ink);
+    font-size: 16px; font-style: normal; font-weight: 400;
+  }
+  body.dark.mobile-modern .graded-price-input,
+  body.dark.mobile-modern .graded-add-form input,
+  body.dark.mobile-modern .graded-add-form select {
+    background: var(--surface-2); border-color: var(--line); color: var(--ink); box-shadow: none;
+  }
+  /* Language switcher (lives in the ⋯ quick menu here) -- same hardcoded-dark bug. */
+  body.dark.mobile-modern .language-switcher button { background: var(--surface-2); color: var(--muted); box-shadow: none; }
+  body.dark.mobile-modern .language-switcher button.active { background: var(--mt-accent-soft); color: var(--brand); box-shadow: none; }
+  /* Markt tab metrics + Beziehungen tab icon badges -- same bug. */
+  body.dark.mobile-modern .market-metrics > div { background: var(--surface-2); box-shadow: none; }
+  body.dark.mobile-modern .price-source-link:hover { border-color: var(--brand); background: var(--surface-2); }
+  body.dark.mobile-modern .relationship span { background: var(--mt-accent-soft); color: var(--brand); }
+  /* Cormorant Garamond's default digit style is old-style/text figures -- letters like 3/7/2
+     draw smaller and shifted off the baseline relative to a lining digit like 8, which read as
+     the decimal comma sitting "too high" (it's actually the whole tail end of the number
+     floating relative to the first digit, not the comma specifically). Lining figures force
+     all digits to the same cap-aligned height, like the rest of the UI's numerals. */
+  body.dark.mobile-modern .modal-price { font-variant-numeric: lining-nums; }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ophir Figures · Anmeldung</title>
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <!-- Light or dark: what the user had on last (the app keeps it in a cookie), else what the
+       system asks for. Set before the first paint so the page does not flash the other one. -->
+  <script>
+    (function () {
+      var match = document.cookie.match(/(?:^|; )ophir_figures_theme=(light|dark)(?:;|$)/);
+      if (match) document.documentElement.dataset.theme = match[1];
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Web fonts are decoration: loaded without blocking rendering, so the page does not hang on
+       fonts.googleapis.com when there is no internet (offline use, DNS filter) -- the system font
+       fallback from the stylesheet shows until they arrive. -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="{{ asset_url('login.css') }}">
+</head>
+<body class="login-page">
+  <main class="login-layout">
+    <section class="login-showcase" aria-hidden="true">
+      <div class="login-brand">
+        <svg class="brand-symbol" viewBox="0 0 44 44" aria-hidden="true"><circle class="brand-card-spark" cx="22" cy="11.5" r="5"/><path class="brand-card-front" d="M14 33c.6-8.2 3.4-14.5 8-14.5s7.4 6.3 8 14.5"/><path class="brand-card-line" d="M10.5 37.5h23"/></svg>
+        <span class="brand-word"><b>OPHIR</b><span>FIGURES</span></span>
+      </div>
+      <div class="login-stage">
+        <div class="login-glow"></div>
+        <div class="login-card login-card-back"><span>PREORDER</span><b>Await.</b></div>
+        <div class="login-card login-card-mid"><span>DISPLAY</span><b>Admire.</b></div>
+        <div class="login-card login-card-front"><span>COLLECT</span><b>Discover.</b></div>
+        <div class="login-plate"></div>
+      </div>
+      <div class="login-quote">
+        <span class="login-eyebrow">DEINE SAMMLUNG. EIN ORT.</span>
+        <h1>Jede Figur erzählt eine Geschichte.</h1>
+        <p>Organisiere deine Figurensammlung, behalte Vorbestellungen und Erscheinungstermine im Blick und wisse, was deine Vitrine wert ist.</p>
+      </div>
+    </section>
+    <section class="login-panel">
+      <div class="login-mobile-brand">
+        <svg class="brand-symbol" viewBox="0 0 44 44" aria-hidden="true"><circle class="brand-card-spark" cx="22" cy="11.5" r="5"/><path class="brand-card-front" d="M14 33c.6-8.2 3.4-14.5 8-14.5s7.4 6.3 8 14.5"/><path class="brand-card-line" d="M10.5 37.5h23"/></svg>
+        <span class="brand-word"><b>OPHIR</b><span>FIGURES</span></span>
+      </div>
+      <form method="post" class="login-form">
+        <span class="login-eyebrow">WILLKOMMEN ZURÜCK</span>
+        <h2>Sammlung öffnen</h2>
+        <p class="login-lead">Melde dich an, um deinen Fortschritt fortzusetzen.</p>
+        {% if error %}<div class="login-error" role="alert">{{ error }}</div>{% endif %}
+        <label><span>Benutzername</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
+        <label><span>Passwort</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="login-submit" type="submit">Anmelden <span aria-hidden="true">→</span></button>
+        {% if oauth_enabled %}
+        <div class="login-divider"><span>oder</span></div>
+        <a class="login-sso" href="{{ url_for('oauth_login') }}">Mit {{ oauth_provider_name }} anmelden</a>
+        {% endif %}
+      </form>
+      <p class="login-footer">Self-hosted · Deine Daten bleiben bei dir</p>
+    </section>
+  </main>
+</body>
+</html>

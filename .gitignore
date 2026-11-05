@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.db
+*.db-shm
+*.db-wal
+*.db.before-migration-*
+figure-images/
+figure-thumbnails/
+.env
+.claude/
+oauth.json

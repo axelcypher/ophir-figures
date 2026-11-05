@@ -1,6 +1,8 @@
 """Signing in: local passwords and the optional OAuth/OIDC provider."""
 
 import json
+import math
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import redirect, render_template, request, session, url_for
@@ -97,6 +99,42 @@ def resolve_oauth_identity(config, subject, email, display_name, email_verified=
     return None
 
 
+# Password guessing: after this many failed sign-ins within the window, for one username or from
+# one address, further attempts are turned away without looking at the password, until the oldest
+# of them has left the window. Per username catches guesses spread over many addresses, per address
+# one client trying many usernames. Behind a proxy every client has the proxy's address unless
+# TRUST_PROXY_HEADERS is set.
+LOGIN_FAILURE_WINDOW = timedelta(minutes=15)
+LOGIN_FAILURES_PER_USERNAME = 10
+LOGIN_FAILURES_PER_IP = 30
+
+
+def login_window_start():
+    return (datetime.now(timezone.utc) - LOGIN_FAILURE_WINDOW).replace(microsecond=0).isoformat()
+
+
+def login_retry_after(connection, ip, username):
+    """Seconds until a sign-in from `ip` for `username` is looked at again; 0 = now."""
+    since, now = login_window_start(), datetime.now(timezone.utc)
+    wait = 0
+    for column, value, limit in (("username", username, LOGIN_FAILURES_PER_USERNAME), ("ip", ip, LOGIN_FAILURES_PER_IP)):
+        # The limit-th most recent failure: once it has left the window, there is room again.
+        row = connection.execute(
+            f"SELECT failed_at FROM login_failures WHERE {column}=? AND failed_at>? ORDER BY failed_at DESC LIMIT 1 OFFSET ?",
+            (value, since, limit - 1),
+        ).fetchone()
+        if row:
+            free_at = datetime.fromisoformat(row["failed_at"]) + LOGIN_FAILURE_WINDOW
+            wait = max(wait, 1, math.ceil((free_at - now).total_seconds()))
+    return wait
+
+
+def record_login_failure(connection, ip, username):
+    connection.execute("DELETE FROM login_failures WHERE failed_at<=?", (login_window_start(),))
+    connection.execute("INSERT INTO login_failures(ip,username,failed_at) VALUES(?,?,?)", (ip, username, now_iso()))
+    connection.commit()
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     oauth_config = resolve_oauth_config()
@@ -106,11 +144,24 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        row = db().execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        connection = db()
+        # Counted in lower case ("Admin" is a guess at admin too) and cut short, so a huge field
+        # cannot bloat the table.
+        ip, counted_name = request.remote_addr or "", username.lower()[:200]
+        wait = login_retry_after(connection, ip, counted_name)
+        if wait:
+            minutes = math.ceil(wait / 60)
+            error = f"Zu viele fehlgeschlagene Anmeldeversuche. Bitte in {minutes} {'Minute' if minutes == 1 else 'Minuten'} erneut versuchen."
+            return render_template("login.html", error=error, **oauth_context), 429, {"Retry-After": str(wait)}
+        row = connection.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
         if row and row["password_hash"] and check_password_hash(row["password_hash"], password):
+            # Only this address's own typos are forgiven: a guesser elsewhere keeps counting.
+            connection.execute("DELETE FROM login_failures WHERE ip=? AND username=?", (ip, counted_name))
+            connection.commit()
             session.clear()
             session["user_id"] = row["id"]
             return redirect(url_for("index"))
+        record_login_failure(connection, ip, counted_name)
         return render_template("login.html", error="Benutzername oder Passwort ist nicht korrekt.", **oauth_context), 401
     if session.get("user_id"):
         return redirect(url_for("index"))

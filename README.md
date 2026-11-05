@@ -49,6 +49,8 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
 
 4. Open <http://localhost:18082> and sign in as `admin` / `admin`. Change that password under **Admin → Benutzer** right away and create the other accounts there.
 
+Password sign-ins are throttled: after 10 failed attempts for one username or 30 from one address within 15 minutes, the login page answers 429 until the oldest of them is 15 minutes old, without checking the password. Single sign-on is not affected. Behind a reverse proxy set `TRUST_PROXY_HEADERS`, otherwise every client counts as the proxy's address.
+
 The first start creates the database in the `ophir_figures_data` volume. There is no demo data: the catalogue starts empty and grows with the figures you add.
 
 ## Configuration
@@ -57,7 +59,7 @@ The first start creates the database in the `ophir_figures_data` volume. There i
 | --- | --- | --- | --- | --- |
 | `SECRET_KEY` | env | Signs the session cookies; gunicorn (the container) does not start without it | none; only `python app.py` (the local debug server), the demo server and the tests fall back to a public development key | yes |
 | `DATABASE_PATH` | env | SQLite file; pictures and thumbnails live in `figure-images/` and `figure-thumbnails/` next to it | `ophir-figures.db` in the repo root; `/data/ophir-figures.db` in the image | no |
-| `TRUST_PROXY_HEADERS` | env | `true`, `1` or `yes`: honour `X-Forwarded-Proto` / `X-Forwarded-Host` | off | behind a TLS-terminating proxy |
+| `TRUST_PROXY_HEADERS` | env | `true`, `1` or `yes`: honour `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` (client address for the login throttle, `https://` redirect URIs) | off | behind a TLS-terminating proxy |
 | `OAUTH_CONFIG_PATH` | env | SSO config file that replaces the Admin UI settings | `/config/oauth.json` | no |
 | `PUBLIC_PROFILE_URL` | env | Base URL public profile links are built on, e.g. `https://ophirfigures.example.org` | the address the settings page was opened on | no |
 | SSO settings | **Admin → Single Sign-On** or `oauth.json` | One OAuth2/OIDC provider, shape as in [oauth.json.example](oauth.json.example) | off | no |

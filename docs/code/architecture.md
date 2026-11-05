@@ -45,7 +45,7 @@ SQLite  <DATA>/ophir-figures.db (WAL)  +  figure-images/  figure-thumbnails/
 
 All state is in the directory of `DATABASE_PATH` (`/data` in the container, the `ophir_figures_data` volume):
 
-- `ophir-figures.db` - users and settings (`users`, `user_settings`, `app_settings`), the catalogue (`figures`, `price_observations`), account data (`collection_entries`, `watchlists`, `watchlist_entries`, `preorders`, `preorder_events`, `import_operations`) and `schema_migrations`.
+- `ophir-figures.db` - users and settings (`users`, `login_failures` for the login throttle, `user_settings`, `app_settings`), the catalogue (`figures`, `price_observations`), account data (`collection_entries`, `watchlists`, `watchlist_entries`, `preorders`, `preorder_events`, `import_operations`) and `schema_migrations`.
 - `ophir-figures.db.before-migration-NNNN` - copies taken before a migration (two kept).
 - `figure-images/` - every picture once, named by the SHA-256 of its bytes (uploads cannot be fetched again: back this up); `figure-thumbnails/` - WebP thumbnails, rebuildable.
 - In the browser: only the theme cookie and nothing else; there is no offline mode.

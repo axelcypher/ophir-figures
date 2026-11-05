@@ -33,9 +33,9 @@ Imports nothing from the package.
 
 ### migrations/
 
-- `MIGRATIONS` - the ordered list; `m0001_baseline` creates every table. `migrate(connection, path)` applies each missing one in its own transaction and records it in `schema_migrations`; safe with several processes starting together; refuses a database with a version it does not know; copies an existing database first (`<db>.before-migration-NNNN`, two kept). `status(connection)` - (version, expected).
+- `MIGRATIONS` - the ordered list: `m0001_baseline` creates the tables below, `m0002_login_failures` the login throttle's table. `migrate(connection, path)` applies each missing one in its own transaction and records it in `schema_migrations`; safe with several processes starting together; refuses a database with a version it does not know; copies an existing database first (`<db>.before-migration-NNNN`, two kept). `status(connection)` - (version, expected).
 
-## Tables (m0001)
+## Tables (m0001, m0002)
 
 | Table | Holds | Notes |
 | --- | --- | --- |
@@ -46,6 +46,7 @@ Imports nothing from the package.
 | `watchlists`, `watchlist_entries` | wishlists (one `is_default` per account), entries with `target_price`, `note` | entries CASCADE with their list |
 | `preorders`, `preorder_events` | preorders (status CHECK), their history (`created`/`status`/`release`/`paid`) | CASCADE with the user / the preorder |
 | `import_operations` | restores with the ids they added, for undo | CASCADE with the user |
+| `login_failures` (m0002) | failed password sign-ins: `ip`, `username` (lower case), `failed_at` | indexes on `(ip, failed_at)` and `(username, failed_at)`; no foreign key (unknown usernames count too); rows older than 15 min are deleted on the next failure ([auth.md](auth.md)) |
 
 Deleting an account therefore needs no code beyond `DELETE FROM users` (foreign keys are on in every request connection).
 

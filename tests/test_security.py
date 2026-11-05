@@ -24,6 +24,42 @@ def test_a_server_does_not_start_with_the_public_development_key(monkeypatch):
     runpy.run_path(str(ROOT / "app.py"), run_name="app")
 
 
+def sign_in(client, username="demo", password="wrong", ip="203.0.113.7"):
+    return client.post("/login", data={"username": username, "password": password}, environ_base={"REMOTE_ADDR": ip})
+
+
+def test_password_guessing_is_throttled_per_username(anonymous):
+    """POST /login must not take any number of guesses: a fresh database starts with admin/admin.
+    Guesses spread over many addresses still count for the one account."""
+    limit = ophir_figures.auth.LOGIN_FAILURES_PER_USERNAME
+    for attempt in range(limit):
+        assert sign_in(anonymous, "demo" if attempt % 2 else "DEMO", ip=f"203.0.113.{attempt}").status_code == 401
+    throttled = sign_in(anonymous, password=DEMO[1], ip="198.51.100.1")
+    assert throttled.status_code == 429 and 0 < int(throttled.headers["Retry-After"]) <= 15 * 60
+    assert "Zu viele fehlgeschlagene Anmeldeversuche" in throttled.get_data(as_text=True)
+    assert anonymous.get("/api/bootstrap").status_code == 401, "not even the right password is looked at"
+    assert query("SELECT COUNT(*) n FROM login_failures")[0]["n"] == limit, "a turned-away attempt does not prolong the wait"
+
+    assert sign_in(anonymous, "admin", "admin", ip="198.51.100.1").status_code == 302, "other accounts sign in as usual"
+    query("UPDATE login_failures SET failed_at='2026-01-01T00:00:00+00:00'")
+    assert sign_in(ophir_figures.app.test_client(), password=DEMO[1]).status_code == 302, "the failures expire"
+
+
+def test_password_guessing_is_throttled_per_address(anonymous):
+    for attempt in range(ophir_figures.auth.LOGIN_FAILURES_PER_IP):
+        assert sign_in(anonymous, f"user-{attempt}").status_code == 401
+    assert sign_in(anonymous, password=DEMO[1]).status_code == 429
+    assert sign_in(anonymous, password=DEMO[1], ip="198.51.100.1").status_code == 302, "other addresses sign in as usual"
+
+
+def test_a_successful_sign_in_forgets_only_its_own_failures(anonymous):
+    for _ in range(3):
+        sign_in(anonymous, ip="203.0.113.9")
+    sign_in(anonymous, ip="198.51.100.1")
+    assert sign_in(anonymous, password=DEMO[1], ip="198.51.100.1").status_code == 302
+    assert [row["ip"] for row in query("SELECT ip FROM login_failures")] == ["203.0.113.9"] * 3, "a guesser elsewhere keeps counting"
+
+
 def test_session_cookie_is_samesite_lax(anonymous):
     response = anonymous.post("/login", data={"username": DEMO[0], "password": DEMO[1]})
     cookie = response.headers["Set-Cookie"]

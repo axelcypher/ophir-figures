@@ -1,6 +1,6 @@
 # Ophir Figures
 
-Self-hosted, multi-user collection manager for anime figures (scale figures, Nendoroids, figma, prize figures and the like): a shared figure catalogue, each account's collection with purchase data, wishlists, preorders from order to arrival, market values and a public profile. One Flask app with an SQLite database, shipped as a single container image. The figures counterpart of [DeckLedger](https://github.com/axelcypher/deckledger) (future Ophir Cards), built from its code base. Prototype: complete and tested, not yet deployed.
+Self-hosted, multi-user collection manager for anime figures (scale figures, Nendoroids, figma, prize figures and the like): a shared figure catalogue, each account's collection with purchase data, wishlists, preorders from order to arrival, market values and a public profile. One Flask app with an SQLite database, shipped as a single container image. The figures counterpart of [DeckLedger](https://github.com/axelcypher/deckledger) (future Ophir Cards), built from its code base. Complete and tested; in use in the author's homelab.
 
 ## Features
 

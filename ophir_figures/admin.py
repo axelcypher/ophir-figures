@@ -206,6 +206,8 @@ def admin_get_oauth():
 def admin_save_oauth():
     if Path(OAUTH_CONFIG_PATH).is_file():
         return jsonify({"error": f"OAuth wird über die Config-Datei {OAUTH_CONFIG_PATH} verwaltet und kann hier nicht bearbeitet werden."}), 400
+    if resolve_oauth_config()["source"] == "environment":
+        return jsonify({"error": "OAuth wird über die Umgebungsvariablen OAUTH_* verwaltet und kann hier nicht bearbeitet werden."}), 400
     p = request.get_json(force=True) or {}
     if p.get("account_matching") not in ("manual", "email", "auto_provision"):
         return jsonify({"error": "Ungültiger Wert für account_matching."}), 400

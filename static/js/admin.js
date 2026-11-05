@@ -5,19 +5,19 @@ async function renderAdmin(){
   content.innerHTML='<div class="page-loader"><span></span><p>Admin-Bereich wird geladen …</p></div>';
   const [oauth,users]=await Promise.all([api('/api/admin/oauth'),api('/api/admin/users')]);
   if(stale())return;
-  const oauthLocked=oauth.source==='file',ro=oauthLocked?'disabled':'';
+  const oauthLocked=oauth.source==='file'||oauth.source==='environment',ro=oauthLocked?'disabled':'';
   content.innerHTML=`<div class="page-head compact-page-head"><div><span class="eyebrow">VERWALTUNG</span><h1>Admin</h1><p>Benutzer, Anmeldung und der gemeinsame Katalog.</p></div></div>
     <details class="settings-section oauth-admin-card ${oauthLocked?'is-locked':''}">
       <summary class="oauth-admin-summary">
         <div class="oauth-admin-head">
           <div class="oauth-admin-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.8 20 6v5.2c0 4.8-3.2 8.3-8 10-4.8-1.7-8-5.2-8-10V6l8-3.2Z"/><circle cx="12" cy="10" r="2.2"/><path d="M12 12.2v4"/></svg></div>
           <div class="oauth-admin-title"><span>AUTHENTIFIZIERUNG</span><h2>Single Sign-On</h2><p>OAuth 2.0 und OpenID Connect für einen externen Identity Provider.</p></div>
-          <div class="oauth-admin-state"><span class="oauth-status ${oauth.enabled?'is-active':'is-inactive'}"><i></i>${oauth.enabled?'Aktiv':'Inaktiv'}</span><span class="oauth-source-badge">${oauthLocked?'Config-Datei':'In der App'}</span></div>
+          <div class="oauth-admin-state"><span class="oauth-status ${oauth.enabled?'is-active':'is-inactive'}"><i></i>${oauth.enabled?'Aktiv':'Inaktiv'}</span><span class="oauth-source-badge">${oauth.source==='file'?'Config-Datei':oauth.source==='environment'?'Umgebungsvariablen':'In der App'}</span></div>
           <span class="oauth-collapse-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5"/></svg></span>
         </div>
       </summary>
       <div class="oauth-admin-body">
-      ${oauthLocked?`<div class="oauth-lock-notice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg><div><b>Konfiguration schreibgeschützt</b><span>Die Werte kommen aus <code>${escapeHtml(oauth.config_path)}</code>. Änderungen erfolgen in der Datei und werden nach einem Container-Neustart übernommen.</span></div></div>`:''}
+      ${oauthLocked?`<div class="oauth-lock-notice"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg><div><b>Konfiguration schreibgeschützt</b><span>${oauth.source==='environment'?'Die Werte kommen aus den Umgebungsvariablen <code>OAUTH_*</code> des Servers. Änderungen werden nach einem Neustart des Containers übernommen.':`Die Werte kommen aus <code>${escapeHtml(oauth.config_path)}</code>. Änderungen erfolgen in der Datei und werden nach einem Container-Neustart übernommen.`}</span></div></div>`:''}
       <div class="admin-form oauth-admin-form">
         <label class="oauth-toggle-row">
           <span class="oauth-toggle-copy"><b>SSO-Anmeldung</b><small>${oauth.enabled?'Der externe Login wird auf der Anmeldeseite angeboten.':'Die lokale Anmeldung bleibt aktiv; SSO ist derzeit ausgeblendet.'}</small></span>

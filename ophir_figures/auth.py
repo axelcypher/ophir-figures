@@ -2,6 +2,7 @@
 
 import json
 import math
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -15,11 +16,23 @@ from .web import app, db
 from .schema import ensure_user_lists
 
 
+def oauth_config_from_environment():
+    """SSO settings from variables named OAUTH_ plus a field of OAUTH_CONFIG_DEFAULTS in capitals:
+    OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_DISCOVERY_URL and, if needed, OAUTH_PROVIDER_NAME,
+    OAUTH_ACCOUNT_MATCHING and the rest. They switch SSO on. None while OAUTH_CLIENT_ID is unset."""
+    values = {}
+    for key in OAUTH_CONFIG_DEFAULTS:
+        value = os.environ.get(f"OAUTH_{key.upper()}", "").strip()
+        if value and key != "enabled":
+            values[key] = value
+    return {**values, "enabled": True} if values.get("client_id") else None
+
+
 def resolve_oauth_config():
-    # File wins whenever it's mounted -- the Admin UI shows those fields read-only in that
-    # case (see api_admin_oauth). Without a mounted file, settings live in app_settings and
-    # are read fresh on every call (no in-process caching of this dict) so an Admin UI save
-    # takes effect on the very next login click, no restart needed.
+    # A mounted file wins, then OAUTH_* variables (the homelab renders them from Vault) -- the
+    # Admin UI shows the fields read-only in both cases (see admin_get_oauth). Otherwise settings
+    # live in app_settings and are read fresh on every call (no in-process caching of this dict)
+    # so an Admin UI save takes effect on the very next login click, no restart needed.
     path = Path(OAUTH_CONFIG_PATH)
     if path.is_file():
         try:
@@ -27,6 +40,9 @@ def resolve_oauth_config():
         except (OSError, json.JSONDecodeError):
             file_config = {}
         return {**OAUTH_CONFIG_DEFAULTS, **file_config, "source": "file"}
+    environment_config = oauth_config_from_environment()
+    if environment_config:
+        return {**OAUTH_CONFIG_DEFAULTS, **environment_config, "source": "environment"}
     row = db().execute("SELECT value FROM app_settings WHERE key='oauth_config'").fetchone()
     stored = jload(row["value"], {}) if row else {}
     return {**OAUTH_CONFIG_DEFAULTS, **stored, "source": "database"}

@@ -311,3 +311,28 @@ def test_an_id_token_for_someone_else_or_out_of_date_is_not_used():
     assert oauth_client.id_token_claims(config, {"id_token": "not.a-token"}) == {}
     assert oauth_client.id_token_claims(config, {"id_token": "a.%%%.c"}) == {}
     assert oauth_client.id_token_claims(config, {"access_token": "only"}) == {} and oauth_client.id_token_claims(config, "plain") == {}
+
+
+def test_sso_settings_can_come_from_the_environment(admin, anonymous, monkeypatch):
+    """The homelab renders OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET and OAUTH_DISCOVERY_URL from Vault
+    into the container's environment: they switch SSO on, and the Admin UI cannot change them."""
+    assert admin.get("/api/admin/oauth").get_json()["source"] == "database"
+    monkeypatch.setenv("OAUTH_CLIENT_ID", "ophir")
+    monkeypatch.setenv("OAUTH_CLIENT_SECRET", "from-vault")
+    monkeypatch.setenv("OAUTH_DISCOVERY_URL", "https://auth.example.org/application/o/ophir/.well-known/openid-configuration")
+    monkeypatch.setenv("OAUTH_PROVIDER_NAME", "Authentik")
+    monkeypatch.setenv("OAUTH_ENABLED", "false")
+
+    config = admin.get("/api/admin/oauth").get_json()
+    assert config["source"] == "environment" and config["enabled"] is True, "OAUTH_ENABLED is not read: the client id switches it on"
+    assert config["client_id"] == "ophir" and config["provider_name"] == "Authentik" and config["client_secret_set"]
+    assert "from-vault" not in json.dumps(config)
+    assert config["account_matching"] == "auto_provision" and config["scopes"] == "openid email profile", "the rest keeps its defaults"
+    refused = admin.post("/api/admin/oauth", json={"enabled": False, "account_matching": "manual"})
+    assert refused.status_code == 400 and "OAUTH_" in refused.get_json()["error"]
+    assert "Authentik" in anonymous.get("/login").get_data(as_text=True)
+
+
+def test_without_a_client_id_the_environment_is_ignored(admin, monkeypatch):
+    monkeypatch.setenv("OAUTH_CLIENT_SECRET", "half-configured")
+    assert admin.get("/api/admin/oauth").get_json()["source"] == "database"

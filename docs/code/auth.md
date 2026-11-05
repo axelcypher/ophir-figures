@@ -14,7 +14,8 @@
 | POST | `/logout` | Clears the session. |
 
 - Login throttle (table `login_failures`, migration 0002): every failed `POST /login` stores the client address (`request.remote_addr`, the proxy's unless `TRUST_PROXY_HEADERS`), the username in lower case (cut to 200 characters, unknown names too) and the time, and deletes rows older than `LOGIN_FAILURE_WINDOW` (15 min). `login_retry_after(connection, ip, username)` returns the seconds until an attempt is looked at again: with `LOGIN_FAILURES_PER_USERNAME` (10) failures for the username or `LOGIN_FAILURES_PER_IP` (30) from the address inside the window, until the oldest of the counted ones leaves it. A turned-away attempt is not recorded. A successful sign-in deletes only the failures of its own address for that username.
-- `resolve_oauth_config()` - defaults overlaid by the file at `OAUTH_CONFIG_PATH` (`source: file`) or `app_settings.oauth_config`; read on every call.
+- `resolve_oauth_config()` - defaults overlaid by the file at `OAUTH_CONFIG_PATH` (`source: file`), else by `oauth_config_from_environment()` (`source: environment`), else by `app_settings.oauth_config` (`source: database`); read on every call.
+- `oauth_config_from_environment()` - `OAUTH_<FIELD>` for every field of `OAUTH_CONFIG_DEFAULTS` except `enabled` (`OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_DISCOVERY_URL`, `OAUTH_PROVIDER_NAME`, `OAUTH_ACCOUNT_MATCHING`, ...); a set `OAUTH_CLIENT_ID` switches SSO on, without it the variables are ignored.
 - `email_is_verified(claims)` - True only for an `email_verified` claim of `true` or the string `"true"` (any case); missing, `false`, `null` or anything else is False. The callback passes this to `resolve_oauth_identity`.
 - `resolve_oauth_identity(config, subject, email, name, email_verified=False)` - linked account; with `email`/`auto_provision` the unlinked account with that verified email (an unverified one that matches gives None); with `auto_provision` a new `user` account plus its default wishlist.
 
@@ -40,7 +41,7 @@
 | GET | `/api/admin/catalog` | Every figure with `owners`, `preorders`, `wished`; `duplicates` (groups with the same JAN or the same name+manufacturer); `unused` ids. |
 | POST | `/api/admin/catalog/merge` | `{source, target}`: collection rows, preorders and market values move to `target`, wishlist entries too (a list that has both keeps one), `source` is deleted. |
 | DELETE | `/api/admin/catalog/<id>` | Only an unused figure (409). |
-| GET/POST | `/api/admin/oauth` | SSO settings without the secret / save (refused while a config file is mounted; a blank secret keeps the stored one). |
+| GET/POST | `/api/admin/oauth` | SSO settings without the secret, with their `source` / save (refused while they come from a config file or `OAUTH_*` variables; a blank secret keeps the stored one). |
 
 - The last admin can be neither demoted nor deleted; nobody deletes their own account here.
 
@@ -52,6 +53,7 @@
 ## Decisions and assumptions
 
 - Exactly one SSO provider; `users.oauth_provider` is always `generic`.
+- SSO settings from `OAUTH_*` variables as well as from a file: the homelab renders secrets from Vault into an env file for the container, while a rendered file would belong to the render agent's user (mode `0400`) and be unreadable for the app's.
 - Matching by email includes admin accounts, so it needs the provider's word that it verified the address: only an explicit `email_verified: true` counts (DeckLedger 369946e). A missing claim used to count as verified, which let anyone who could set that address at the provider take over the account. Google sends the claim; Authentik sends `false` from 2025.10 on unless a scope mapping says otherwise; Entra ID and plain OAuth2 providers send none and so never match by email.
 - No CSRF tokens: forms and API writes rely on `web.reject_cross_site_writes`.
 - The login throttle (DeckLedger 9ead237) keeps its count in SQLite, not in memory, so both gunicorn workers count together and a restart forgives nothing. Counting per username also stops guesses spread over many addresses, at a price: someone who keeps failing for a username keeps its password sign-in blocked (SSO still works). A success forgets only its own address's failures, so a guesser elsewhere gets no fresh allowance from the owner signing in.

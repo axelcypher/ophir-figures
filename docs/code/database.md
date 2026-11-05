@@ -6,7 +6,7 @@
 
 ### app.py
 
-- `gunicorn app:app` in the container (2 workers, 4 threads, port 8080); `python app.py` starts Flask's debug server on 0.0.0.0:8080. It only re-exports `ophir_figures.app`.
+- `gunicorn app:app` in the container (2 workers, 4 threads, port 8080); `python app.py` starts Flask's debug server on 0.0.0.0:8080. It re-exports `ophir_figures.app` and calls `web.require_secret_key`: imported (gunicorn, `python -c "import app"` in docker-entrypoint.sh) it exits without a `SECRET_KEY`, run as the debug server it only logs a warning. The tests and the demo server (tests/frontend/serve.py) import `ophir_figures` directly and are not checked.
 - Importing `ophir_figures` (or any submodule) imports every route module and calls `schema.init_database()`.
 
 ### config.py
@@ -23,6 +23,7 @@ Imports nothing from the package.
 - `login_required`, `admin_required`, `user_id()` - as in DeckLedger: a stale session is cleared; `/api/...` gets 401/403 JSON.
 - `asset_url(filename)` (Jinja global) - static URL with `?v=<12 hex of the content hash>`; such a URL is cached for a year. Text files and JSON/HTML answers are gzipped.
 - Hooks: `reject_cross_site_writes` (403 for a write whose `Sec-Fetch-Site` is not `same-origin`/`none`, or whose `Origin` is another host), `compress_answer`, `IntegrityError` -> 400 JSON on `/api/...`.
+- Settings: `SECRET_KEY` from env, empty or missing falls back to the public `DEVELOPMENT_SECRET_KEY`; `require_secret_key(debug=False)` raises `SystemExit` with a German message while that fallback is in use (with `debug=True` it logs a warning instead); `TRUST_PROXY_HEADERS` in (`1`, `true`, `yes`) wraps the app in `ProxyFix(x_for=1, x_proto=1, x_host=1)`; `SESSION_COOKIE_SAMESITE = "Lax"`.
 - `GET /health` (no auth) - `{"status", "database", "schema_version", "schema_expected"}`.
 
 ### schema.py

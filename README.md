@@ -33,11 +33,13 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
     cd ophir-figures
     ```
 
-2. Set a strong `SECRET_KEY` in the environment or in a `.env` file next to `compose.yaml` (Compose falls back to a fixed development key otherwise):
+2. Set a strong `SECRET_KEY` in the environment or in a `.env` file next to `compose.yaml`; without it Compose refuses to start the stack, and the app refuses to serve:
 
     ```dotenv
     SECRET_KEY=<long random string>
     ```
+
+    One way to get such a string: `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
 
 3. Build and start:
 
@@ -53,7 +55,7 @@ The first start creates the database in the `ophir_figures_data` volume. There i
 
 | Setting | Where | Description | Default | Required |
 | --- | --- | --- | --- | --- |
-| `SECRET_KEY` | env | Signs the session cookies | a fixed development key | yes, outside a local test |
+| `SECRET_KEY` | env | Signs the session cookies; gunicorn (the container) does not start without it | none; only `python app.py` (the local debug server), the demo server and the tests fall back to a public development key | yes |
 | `DATABASE_PATH` | env | SQLite file; pictures and thumbnails live in `figure-images/` and `figure-thumbnails/` next to it | `ophir-figures.db` in the repo root; `/data/ophir-figures.db` in the image | no |
 | `TRUST_PROXY_HEADERS` | env | `true`, `1` or `yes`: honour `X-Forwarded-Proto` / `X-Forwarded-Host` | off | behind a TLS-terminating proxy |
 | `OAUTH_CONFIG_PATH` | env | SSO config file that replaces the Admin UI settings | `/config/oauth.json` | no |
@@ -98,7 +100,7 @@ python -m venv .venv
 .venv/bin/python app.py
 ```
 
-`python app.py` starts Flask's debug server on port 8080 with `ophir-figures.db` in the repo root. `python tests/frontend/serve.py <port>` serves the app with a throwaway database and the small test catalogue (account `demo` / `figuren-1234`), the link import answering only from fakes.
+`python app.py` starts Flask's debug server on port 8080 with `ophir-figures.db` in the repo root (without `SECRET_KEY` it warns and signs sessions with a public development key). `python tests/frontend/serve.py <port>` serves the app with a throwaway database and the small test catalogue (account `demo` / `figuren-1234`), the link import answering only from fakes.
 
 - Code layout: `app.py` is only the entry point; the application is the `ophir_figures` package. Module docs: [docs/code/](docs/code/architecture.md).
 - Schema changes: add `ophir_figures/migrations/mNNNN_<what>.py` with `NAME` and `apply(connection, context)` and list it in `MIGRATIONS`. A released migration is never edited; nothing else creates or alters tables (a test enforces it).

@@ -2,12 +2,26 @@
 account matching."""
 import io
 import json
+import runpy
 
 import pytest
 
-from conftest import DEMO, MIKU, ophir_figures, png_bytes, query
+from conftest import DEMO, MIKU, ROOT, ophir_figures, png_bytes, query
 
 WRITE = json.dumps({"figure_id": MIKU, "quantity": 1})
+
+
+def test_a_server_does_not_start_with_the_public_development_key(monkeypatch):
+    """Without SECRET_KEY, gunicorn would sign the session cookies with a key anyone can read in
+    the repository, so anyone could forge a session for any account. gunicorn and
+    docker-entrypoint.sh import app.py; only the local debug server may go on with that key."""
+    monkeypatch.setitem(ophir_figures.app.config, "SECRET_KEY", ophir_figures.web.DEVELOPMENT_SECRET_KEY)
+    with pytest.raises(SystemExit, match="SECRET_KEY"):
+        runpy.run_path(str(ROOT / "app.py"), run_name="app")
+    ophir_figures.web.require_secret_key(debug=True)
+
+    monkeypatch.setitem(ophir_figures.app.config, "SECRET_KEY", "a-long-random-key-of-its-own")
+    runpy.run_path(str(ROOT / "app.py"), run_name="app")
 
 
 def test_session_cookie_is_samesite_lax(anonymous):

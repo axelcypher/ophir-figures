@@ -60,7 +60,10 @@ class OrjsonProvider(DefaultJSONProvider):
 
 app = OphirFigures("ophir_figures", root_path=str(ROOT))
 app.json = OrjsonProvider(app)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "ophir-figures-local-development-key")
+# Signs the session cookies: whoever knows the key can sign in as anyone. The fallback is public
+# (it is right here) and fit only for the debug server and the tests; see require_secret_key.
+DEVELOPMENT_SECRET_KEY = "ophir-figures-local-development-key"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or DEVELOPMENT_SECRET_KEY
 if os.environ.get("TRUST_PROXY_HEADERS", "").lower() in ("1", "true", "yes"):
     # Opt-in only (never trust X-Forwarded-* from directly-exposed traffic, where a client could
     # spoof them) -- needed behind a TLS-terminating reverse proxy so url_for(_external=True) in
@@ -69,6 +72,20 @@ if os.environ.get("TRUST_PROXY_HEADERS", "").lower() in ("1", "true", "yes"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # Explicit instead of relying on each browser's own default for cookies without the attribute.
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+
+def require_secret_key(debug=False):
+    """Stops a server that would sign sessions with the public development key instead of starting
+    silently without SECRET_KEY. The local debug server only gets a warning."""
+    if app.config["SECRET_KEY"] != DEVELOPMENT_SECRET_KEY:
+        return
+    if debug:
+        app.logger.warning("SECRET_KEY is not set: the debug server signs sessions with the public development key.")
+        return
+    raise SystemExit(
+        "SECRET_KEY ist nicht gesetzt. Ohne eigenen Schlüssel könnte jeder eine Sitzung für jedes Konto fälschen. "
+        'Einen langen Zufallswert setzen, z. B. aus python -c "import secrets; print(secrets.token_urlsafe(48))".'
+    )
 
 
 IMMUTABLE_MAX_AGE = 31_536_000

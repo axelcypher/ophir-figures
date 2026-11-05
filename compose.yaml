@@ -8,7 +8,7 @@ services:
       - "18082:8080"
     environment:
       DATABASE_PATH: /data/ophir-figures.db
-      SECRET_KEY: ${SECRET_KEY:-ophir-figures-local-development-key}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY to a long random string in .env or the environment, see README}
       # TRUST_PROXY_HEADERS: "true"  # only behind a TLS-terminating reverse proxy, see README
       # PUBLIC_PROFILE_URL: https://ophirfigures.example.org  # the public address profile links are built on
     volumes:

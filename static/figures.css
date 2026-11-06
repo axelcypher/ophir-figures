@@ -69,6 +69,45 @@ body.editing .fig-plus { display:grid; }
 .fig-owned-mark, .fig-pre-mark { margin-right:6px;padding:2px 6px;border-radius:999px;background:var(--fig-gold);color:var(--ds-accent-ink);font-size:10px;font-weight:800; }
 .fig-pre-mark { background:#3d5f8f;color:#fff; }
 
+/* ---- Groups: by franchise, brand, manufacturer or line ------------------------------------ */
+/* A row of tabs over a list (the kinds of groups, the preorder states) is as wide as its tabs. */
+body.dark.mobile-modern .content > :is(.fig-group-switch,.fig-preorder-tabs) { width:fit-content;max-width:100%; }
+.fig-group-switch { display:flex;margin:var(--ds-gap-tight,14px) 0 0;overflow-x:auto;scrollbar-width:none; }
+.fig-group-switch::-webkit-scrollbar { display:none; }
+.fig-group-switch button { flex:none;white-space:nowrap; }
+.fig-group-head { display:flex;align-items:center;gap:14px;margin:var(--ds-gap-tight,14px) 0 0;padding:14px 16px;border-radius:var(--ds-radius-tile,18px);background:var(--ds-card);box-shadow:inset 0 0 0 1px var(--ds-line),var(--ds-shadow-card); }
+.fig-group-back { flex:none;width:40px;height:40px;font-size:18px; }
+.fig-group-title { flex:1;min-width:0;display:flex;flex-direction:column;gap:2px; }
+.fig-group-title h2 { margin:0;overflow:hidden;font-size:var(--ds-section-size,22px);line-height:1.15;text-overflow:ellipsis;white-space:nowrap; }
+.fig-group-title small { color:var(--muted);font-size:12px; }
+.fig-group-actions { display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end; }
+.fig-group-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--ds-gap-tight,14px); }
+.fig-group-tile { display:flex;flex-direction:column;min-width:0;border-radius:var(--ds-radius-tile,18px);background:var(--ds-card);box-shadow:inset 0 0 0 1px var(--ds-line),var(--ds-shadow-card);cursor:pointer;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease; }
+.fig-group-tile:hover, .fig-group-tile:focus-visible { transform:translateY(-2px);box-shadow:inset 0 0 0 1px var(--ds-line-strong),var(--ds-shadow-card);outline:none; }
+.fig-group-tile.fig-group-none { background:color-mix(in srgb,var(--ds-panel) 70%,transparent);box-shadow:inset 0 0 0 1px var(--ds-line); }
+.fig-group-tile.fig-group-none .fig-group-meta b { color:var(--muted); }
+/* Up to four figures: one fills the picture, two side by side, three as one tall and two small, four in a square. */
+.fig-group-art { display:grid;gap:2px;aspect-ratio:4/3;background:var(--ds-line);overflow:hidden; }
+.fig-group-art[data-count="2"] { grid-template-columns:1fr 1fr; }
+.fig-group-art[data-count="3"] { grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr; }
+.fig-group-art[data-count="3"] > :first-child { grid-row:1/3; }
+.fig-group-art[data-count="4"] { grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr; }
+.fig-group-art > * { display:block;width:100%;height:100%;min-height:0;object-fit:cover;background:var(--ds-inset); }
+.fig-group-meta { display:flex;flex-direction:column;gap:3px;padding:11px 13px 13px;min-width:0; }
+.fig-group-meta b { overflow:hidden;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical; }
+.fig-group-meta small { overflow:hidden;color:var(--muted);font-size:11.5px;white-space:nowrap;text-overflow:ellipsis; }
+.fig-group-meta .fig-value { font-size:13px; }
+.fig-group-share { display:block;height:6px;margin-top:5px;border-radius:999px;background:var(--ds-inset);box-shadow:inset 0 0 0 1px var(--ds-line);overflow:hidden; }
+.fig-group-share i { display:block;width:var(--share);height:100%;border-radius:inherit;background:var(--fig-gold); }
+.fig-hint { display:flex;flex-direction:column;gap:3px;margin-bottom:var(--ds-gap-tight,14px);padding:12px 16px;border-radius:var(--ds-radius-row,14px);background:var(--ds-accent-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ds-accent) 22%,transparent);font-size:13px; }
+.fig-hint span { color:var(--muted); }
+@media (max-width:760px) {
+  .fig-group-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .fig-group-head { padding:10px 12px;gap:10px; }
+  .fig-group-meta { padding:9px 11px 11px; }
+  .fig-group-meta b { font-size:13px; }
+}
+
 /* ---- The figure dialog ------------------------------------------------------------------- */
 #figure-modal { z-index:110; }
 .fig-dialog { position:relative;display:grid;grid-template-columns:minmax(240px,380px) minmax(0,1fr);gap:26px;width:min(1100px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;padding:26px;border-radius:26px;background:var(--ds-card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--ds-line),0 30px 90px rgba(0,0,0,.4); }

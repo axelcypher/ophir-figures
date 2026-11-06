@@ -7,35 +7,59 @@ function pageHead({eyebrow,title,text,actions=''}){
 }
 const loader=text=>`<div class="page-loader"><span></span><p>${text}</p></div>`;
 
+// The line over a grid: how many figures (or groups) it shows of how many.
+function gridCount(data,grouping,shown,total){
+  const figures=shown===total?plural(total,'Figur','Figuren'):`${shown} von ${total} Figuren`;
+  return data.groups?`${plural(data.groups.length,groupingLabel(grouping.by),groupingLabel(grouping.by,true))} · ${figures}`:figures;
+}
+
+// A view's filter reset keeps the open group: it is where the user is, not a filter they set.
+function resetFilters(filters,defaults,grouping){
+  Object.assign(filters,defaults);
+  if(grouping.open)filters[grouping.open.by]=grouping.open.name||NONE_VALUE;
+}
+
 // ---- Catalogue ----------------------------------------------------------------------------------
 
+const catalogGroupStats=group=>({lines:[plural(group.count,'Figur','Figuren'),`${group.owned} in der Sammlung`],share:group.owned/group.count});
+
 async function renderCatalog(){
-  const stale=renderGuard(),filters=state.catalogFilters;
+  const stale=renderGuard(),filters=state.catalogFilters,grouping=state.grouping.catalog;
+  syncOpenGroup(filters,grouping);
   if(!$('#catalog-grid'))content.innerHTML=loader('Katalog wird geladen …');
   let data;
-  try{data=await api(`/api/figures?${filterQuery(filters)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Katalog nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await api(`/api/figures?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Katalog nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
+  const figures=data.figures||[];
   content.innerHTML=`${pageHead({eyebrow:'GEMEINSAMER KATALOG',title:'Katalog',text:`${plural(data.total,'Figur','Figuren')} – von allen Konten gepflegt. Fehlt eine, leg sie an.`,
       actions:'<button type="button" class="primary-button" id="catalog-create">＋ Figur anlegen</button>'})}
-    ${filterBar({key:'catalog',filters,facets:data.facets,modes:CATALOG_MODES,sorts:['release','name','series','brand','manufacturer','line','added','value'],extraFacets:['scale']})}
-    <p class="fig-count muted">${data.figures.length===data.total?plural(data.total,'Figur','Figuren'):`${data.figures.length} von ${data.total} Figuren`}</p>
+    ${groupSwitch('catalog')}
+    ${grouping.open?groupHead('catalog',{count:figures.length,owned:figures.filter(figure=>figure.owned).length}):''}
+    ${filterBar({key:'catalog',filters,facets:data.facets,modes:CATALOG_MODES,sorts:['release','name','series','brand','manufacturer','line','added','value'],extraFacets:['scale'],grouping})}
+    <p class="fig-count muted">${gridCount(data,grouping,data.shown,data.total)}</p>
     <div id="catalog-grid"></div>`;
   mountFilterPanel('catalog',['.fig-filter-row']);
-  wireFilterBar(content,filters,renderCatalog,()=>{state.catalogFilters=Object.assign(filters,defaultCatalogFilters())});
+  wireFilterBar(content,filters,renderCatalog,()=>resetFilters(filters,defaultCatalogFilters(),grouping));
+  wireGroups(content,'catalog',filters,renderCatalog);
   $('#catalog-create').onclick=()=>openFigureForm({name:filters.q||''});
-  renderFigureGrid($('#catalog-grid'),data.figures,{empty:`<div class="empty-state"><b>${data.total?'Keine Figur passt zu den Filtern':'Der Katalog ist noch leer'}</b><span>${data.total?'Ändere die Filter oder ':''}Lege die erste Figur an – von Hand oder aus einem Link.</span><button type="button" class="primary-button" data-empty-create>＋ Figur anlegen</button></div>`});
+  const empty=`<div class="empty-state"><b>${data.total?'Keine Figur passt zu den Filtern':'Der Katalog ist noch leer'}</b><span>${data.total?'Ändere die Filter oder ':''}Lege die erste Figur an – von Hand oder aus einem Link.</span><button type="button" class="primary-button" data-empty-create>＋ Figur anlegen</button></div>`;
+  if(data.groups)renderGroupGrid($('#catalog-grid'),'catalog',data.groups,{stats:catalogGroupStats,empty,onOpen:name=>openGroup('catalog',filters,name,renderCatalog)});
+  else renderFigureGrid($('#catalog-grid'),figures,{empty});
   $('[data-empty-create]',content)?.addEventListener('click',()=>openFigureForm({name:filters.q||''}));
 }
 
 // ---- Collection ---------------------------------------------------------------------------------
 
+const collectionGroupStats=group=>({lines:[`${plural(group.count,'Figur','Figuren')} · ${plural(group.copies,'Exemplar','Exemplare')}`,`<span class="fig-value">${money(group.value)}</span>`]});
+
 async function renderCollection(){
-  const stale=renderGuard(),filters=state.collectionFilters;
+  const stale=renderGuard(),filters=state.collectionFilters,grouping=state.grouping.collection;
+  syncOpenGroup(filters,grouping);
   if(!$('#collection-grid'))content.innerHTML=loader('Sammlung wird geladen …');
   let data;
-  try{data=await api(`/api/collection?${filterQuery(filters)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Sammlung nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await api(`/api/collection?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Sammlung nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
-  const stats=data.stats;
+  const stats=data.stats,figures=data.figures||[];
   const conditionSelect=`<label class="fig-filter"><span>Zustand</span><select class="select-control" data-filter="condition"><option value="">Alle</option>${Object.entries(data.conditions).map(([key,label])=>`<option value="${key}" ${filters.condition===key?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select></label>`;
   content.innerHTML=`${pageHead({eyebrow:'MEINE SAMMLUNG',title:'Sammlung',text:stats.figures?'Was du besitzt, was es gekostet hat und was es wert ist.':'',
       actions:'<button type="button" class="secondary-button" id="collection-add">＋ Figur hinzufügen</button>'})}
@@ -43,31 +67,39 @@ async function renderCollection(){
       {label:'Figuren',value:stats.figures},{label:'Exemplare',value:stats.copies},
       {label:'Wert',value:money(stats.value)},{label:'Ausgegeben',value:money(stats.spent)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
-    ${filterBar({key:'collection',filters,facets:data.facets,sorts:['added','purchased','release','name','series','brand','manufacturer','line','collection_value','spent'],extraFacets:['scale','location'],extra:conditionSelect})}
-    ${stats.unpriced?`<p class="muted fig-count">${plural(stats.unpriced,'Exemplar hat','Exemplare haben')} weder Kaufpreis noch Marktwert und zählen im Wert nicht mit.</p>`:''}
+    ${stats.figures?groupSwitch('collection'):''}
+    ${grouping.open?groupHead('collection',{count:figures.length}):''}
+    ${filterBar({key:'collection',filters,facets:data.facets,sorts:['added','purchased','release','name','series','brand','manufacturer','line','collection_value','spent'],extraFacets:['scale','location'],extra:conditionSelect,grouping})}
+    <p class="muted fig-count">${gridCount(data,grouping,data.shown.figures,stats.figures)}${stats.unpriced?` · ${plural(stats.unpriced,'Exemplar hat','Exemplare haben')} weder Kaufpreis noch Marktwert und zählen im Wert nicht mit.`:''}</p>
     <div id="collection-grid"></div>`;
   mountFilterPanel('collection',['.fig-filter-row']);
-  wireFilterBar(content,filters,renderCollection,()=>{state.collectionFilters=Object.assign(filters,defaultCollectionFilters())});
+  wireFilterBar(content,filters,renderCollection,()=>resetFilters(filters,defaultCollectionFilters(),grouping));
+  wireGroups(content,'collection',filters,renderCollection);
   $('#collection-add').onclick=()=>{state.catalogFilters.mode='missing';routeTo('catalog')};
-  renderFigureGrid($('#collection-grid'),data.figures,{
+  const empty=stats.figures?'<div class="empty-state"><b>Keine Figur passt zu den Filtern</b><span>Ändere oder setze die Filter zurück.</span></div>'
+    :'<div class="empty-state"><b>Deine Sammlung ist noch leer</b><span>Such eine Figur im Katalog oder leg sie an und füge ein Exemplar hinzu.</span><button type="button" class="primary-button" data-route-catalog>Zum Katalog</button></div>';
+  if(data.groups)renderGroupGrid($('#collection-grid'),'collection',data.groups,{stats:collectionGroupStats,empty,onOpen:name=>openGroup('collection',filters,name,renderCollection)});
+  else renderFigureGrid($('#collection-grid'),figures,{
     tile:figure=>figureTile(figure,{value:figure.value||null,note:[figure.conditions.map(conditionLabel).join(', '),figure.locations.length?`📍 ${figure.locations.join(', ')}`:''].filter(Boolean).map(escapeHtml).join(' · ')}),
-    empty:stats.figures?'<div class="empty-state"><b>Keine Figur passt zu den Filtern</b><span>Ändere oder setze die Filter zurück.</span></div>'
-      :'<div class="empty-state"><b>Deine Sammlung ist noch leer</b><span>Such eine Figur im Katalog oder leg sie an und füge ein Exemplar hinzu.</span><button type="button" class="primary-button" data-route-catalog>Zum Katalog</button></div>'});
+    empty});
   $('[data-route-catalog]',content)?.addEventListener('click',()=>routeTo('catalog'));
 }
 
 // ---- Wishlists ----------------------------------------------------------------------------------
 
+const watchGroupStats=group=>({lines:[plural(group.count,'Figur','Figuren'),group.target_reached?`${group.target_reached} am Zielpreis`:group.owned?`${group.owned} schon in der Sammlung`:'']});
+
 async function renderWatchlist(listId){
-  const stale=renderGuard(),filters=state.watchFilters;
+  const stale=renderGuard(),filters=state.watchFilters,grouping=state.grouping.watch;
   const lists=state.boot.watchlists;
   if(listId)state.watchlistId=listId;
   if(!lists.some(list=>list.id===state.watchlistId))state.watchlistId=lists.find(list=>list.is_default)?.id||lists[0]?.id;
+  syncOpenGroup(filters,grouping);
   if(!$('#watch-grid'))content.innerHTML=loader('Wunschliste wird geladen …');
   let data;
-  try{data=await api(`/api/watchlists/${state.watchlistId}/figures?${filterQuery(filters)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Liste nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await api(`/api/watchlists/${state.watchlistId}/figures?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Liste nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
-  const list=data.list,stats=data.stats;
+  const list=data.list,stats=data.stats,figures=data.figures||[];
   content.innerHTML=`${pageHead({eyebrow:'WUNSCHLISTEN',title:escapeHtml(list.name),text:'Figuren, die du noch suchst – mit Zielpreis wird markiert, was gerade günstig ist.',
       actions:`<button type="button" class="secondary-button" id="watch-new">＋ Neue Liste</button>${list.is_default?'':'<button type="button" class="secondary-button" id="watch-rename">Umbenennen</button><button type="button" class="icon-button" id="watch-delete" title="Liste löschen">✕</button>'}`})}
     <div class="fig-list-tabs">${lists.map(item=>`<button type="button" class="fig-list-tab${item.id===list.id?' active':''}" data-list="${item.id}">${escapeHtml(item.name)} <small>${item.count}</small></button>`).join('')}</div>
@@ -75,10 +107,14 @@ async function renderWatchlist(listId){
       {label:'Figuren',value:stats.count},{label:'Zielpreis erreicht',value:stats.target_reached,className:stats.target_reached?'complete':''},
       {label:'Schon in der Sammlung',value:stats.owned},{label:'Geschätzt',value:money(stats.estimate)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
-    ${filterBar({key:'watch',filters,facets:data.facets,modes:[['all','Alle'],['missing','Noch nicht in der Sammlung']],sorts:['wished','release','name','series','brand','manufacturer','line','value'],extraFacets:['scale']})}
+    ${stats.count?groupSwitch('watch'):''}
+    ${grouping.open?groupHead('watch',{count:figures.length,owned:figures.filter(figure=>figure.owned).length}):''}
+    ${filterBar({key:'watch',filters,facets:data.facets,modes:[['all','Alle'],['missing','Noch nicht in der Sammlung']],sorts:['wished','release','name','series','brand','manufacturer','line','value'],extraFacets:['scale'],grouping})}
+    ${stats.count?`<p class="muted fig-count">${gridCount(data,grouping,data.groups?data.groups.reduce((sum,group)=>sum+group.count,0):figures.length,stats.count)}</p>`:''}
     <div id="watch-grid"></div>`;
   mountFilterPanel('watch',['.fig-filter-row']);
-  wireFilterBar(content,filters,()=>renderWatchlist(),()=>{state.watchFilters=Object.assign(filters,defaultWatchFilters())});
+  wireFilterBar(content,filters,()=>renderWatchlist(),()=>resetFilters(filters,defaultWatchFilters(),grouping));
+  wireGroups(content,'watch',filters,()=>renderWatchlist());
   $$('[data-list]',content).forEach(button=>button.onclick=()=>renderWatchlist(Number(button.dataset.list)));
   $('#watch-new').onclick=async()=>{
     const name=prompt('Name der neuen Liste');if(!name)return;
@@ -92,11 +128,13 @@ async function renderWatchlist(listId){
     if(!confirm(`Liste „${list.name}“ mit ${plural(stats.count,'Figur','Figuren')} löschen?`))return;
     try{await del(`/api/watchlists/${list.id}`);await refreshCounts();renderWatchlist(defaultListId())}catch(error){toast(error.message)}
   });
-  renderFigureGrid($('#watch-grid'),data.figures,{
+  const empty=stats.count?'<div class="empty-state"><b>Keine Figur passt zu den Filtern</b><span>Ändere oder setze die Filter zurück.</span></div>':'<div class="empty-state"><b>Die Liste ist leer</b><span>Setze Figuren mit dem Herz im Katalog auf deine Wunschliste.</span><button type="button" class="primary-button" data-route-catalog>Zum Katalog</button></div>';
+  if(data.groups)renderGroupGrid($('#watch-grid'),'watch',data.groups,{stats:watchGroupStats,empty,onOpen:name=>openGroup('watch',filters,name,()=>renderWatchlist())});
+  else renderFigureGrid($('#watch-grid'),figures,{
     tile:figure=>figureTile(figure,{
       badge:figure.target_reached?'<span class="fig-mark reached" title="Marktwert am oder unter dem Zielpreis">Ziel ✓</span>':'',
       note:[figure.target_price!=null?`Ziel ${money(figure.target_price)}`:'',figure.note].filter(Boolean).map(escapeHtml).join(' · ')}),
-    empty:stats.count?'<div class="empty-state"><b>Keine Figur passt zu den Filtern</b></div>':'<div class="empty-state"><b>Die Liste ist leer</b><span>Setze Figuren mit dem Herz im Katalog auf deine Wunschliste.</span><button type="button" class="primary-button" data-route-catalog>Zum Katalog</button></div>'});
+    empty});
   $('[data-route-catalog]',content)?.addEventListener('click',()=>routeTo('catalog'));
 }
 

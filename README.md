@@ -6,6 +6,7 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
 
 - Local accounts with user and admin roles; optional sign-in through one OAuth2/OIDC provider; optionally one sign-in shared with the other Ophir apps on the same host (Ophir Cards)
 - Shared catalogue: name, original name, characters, franchise, manufacturer, brand, category, line, scale, height, edition, release date, retail price with currency, JAN, sculptor, material, source link, picture; filters, sorting and a forgiving search (`Rem|Ram` for alternatives, a letter off is fine)
+- Groups side by side: the catalogue, the collection and every wishlist can show their figures by franchise, brand, manufacturer or line, each group with a few pictures, how many figures it has and how many of them are in the collection; a group opens to its figures
 - Figures from a link: paste a product page and the form fills itself from its JSON-LD, meta tags and spec tables; for pages that refuse automatic requests (MyFigureCollection, AmiAmi, Kotobukiya, HobbySearch …) the bookmarklet "Zu Ophir Figures" reads the page in your own browser
 - Duplicate check (same JAN, same link, or same name, manufacturer and edition) and, for admins, merging duplicates
 - Collection: copies with condition (sealed, opened with box, loose, damaged), purchase price, date, shop, storage place and notes; totals for value and money spent

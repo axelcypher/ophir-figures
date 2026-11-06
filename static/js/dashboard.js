@@ -47,7 +47,9 @@ async function renderDashboard(){
   $$('[data-dashboard-route]',content).forEach(element=>element.onclick=()=>routeTo(element.dataset.dashboardRoute));
   $$('[data-open-figure]',content).forEach(element=>element.onclick=()=>openFigure(Number(element.dataset.openFigure),'preorders'));
   $$('[data-category]',content).forEach(element=>element.onclick=()=>{
-    state.collectionFilters={...defaultCollectionFilters(),category:element.dataset.category==='Ohne Kategorie'?'':element.dataset.category};
+    state.collectionFilters={...defaultCollectionFilters(),category:element.dataset.category==='Ohne Kategorie'?NONE_VALUE:element.dataset.category};
+    // The category's figures, not the collection's groups.
+    Object.assign(state.grouping.collection,{by:'',open:null});
     routeTo('collection');
   });
   renderFigureGrid($('#dashboard-recent'),collection.recent.map(item=>({...item,owned:item.quantity})),{

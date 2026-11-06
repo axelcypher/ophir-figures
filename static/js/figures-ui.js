@@ -102,12 +102,16 @@ async function quickAddCopy(figureId){
 const SORT_LABELS={release:'Erscheinung',name:'Name',series:'Franchise',brand:'Marke',manufacturer:'Hersteller',line:'Linie',added:'Hinzugefügt',value:'Marktwert',purchased:'Kaufdatum',spent:'Kaufpreis',collection_value:'Wert',wished:'Gewünscht seit'};
 const FACET_LABELS={series:'Franchise',character:'Charakter',brand:'Marke',manufacturer:'Hersteller',line:'Linie',category:'Kategorie',scale:'Maßstab',year:'Jahr',location:'Aufbewahrung'};
 
-function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],extra=''}){
-  const facetKeys=[...['series','character','brand','manufacturer','line','category'],...extraFacets,'year'].filter(name=>facets[name]);
+// grouping: the view's state.grouping entry. While it shows groups, the bar sorts the groups and
+// leaves out the filter by the field they are grouped by; with a group open, that filter is the group.
+function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],extra='',grouping=null}){
+  const overview=Boolean(grouping?.by&&!grouping.open),locked=grouping?.open?.by;
+  const facetKeys=[...['series','character','brand','manufacturer','line','category'],...extraFacets,'year'].filter(name=>facets[name]&&!(overview&&name===grouping.by));
   const select=name=>{
     const options=facets[name]||[];
     if(!options.length&&!filters[name])return '';
-    return `<label class="fig-filter"><span>${FACET_LABELS[name]||name}</span><select class="select-control" data-filter="${name}"><option value="">Alle</option>${options.map(([value,count])=>`<option value="${escapeHtml(value)}" ${filters[name]===value?'selected':''}>${escapeHtml(value)} (${count})</option>`).join('')}</select></label>`;
+    const none=filters[name]===NONE_VALUE?`<option value="${NONE_VALUE}" selected>Ohne ${FACET_LABELS[name]||name}</option>`:'';
+    return `<label class="fig-filter"><span>${FACET_LABELS[name]||name}</span><select class="select-control" data-filter="${name}"><option value="">Alle</option>${none}${options.map(([value,count])=>`<option value="${escapeHtml(value)}" ${filters[name]===value?'selected':''}>${escapeHtml(value)} (${count})</option>`).join('')}</select></label>`;
   };
   return `<div class="fig-toolbar" data-filter-bar="${key}">
     <div class="fig-toolbar-row">
@@ -117,9 +121,10 @@ function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],ext
     </div>
     <div class="fig-toolbar-row fig-filter-row">
       ${facetKeys.map(select).join('')}
-      <label class="fig-filter"><span>Sortierung</span><select class="select-control" data-filter="sort">${sorts.map(value=>`<option value="${value}" ${filters.sort===value?'selected':''}>${SORT_LABELS[value]||value}</option>`).join('')}</select></label>
-      <button type="button" class="icon-button fig-direction" data-direction title="Reihenfolge umkehren">${(filters.direction||defaultDirection(filters.sort))==='asc'?'↑':'↓'}</button>
-      ${Object.entries(filters).some(([name,value])=>value&&!['sort','direction','mode'].includes(name))?'<button type="button" class="link-button" data-filter-reset>Filter zurücksetzen</button>':''}
+      ${overview?`<label class="fig-filter"><span>Gruppen sortieren</span><select class="select-control" data-group-sort>${Object.entries(GROUP_SORT_LABELS).map(([value,label])=>`<option value="${value}" ${grouping.sort===value?'selected':''}>${label}</option>`).join('')}</select></label>`
+        :`<label class="fig-filter"><span>Sortierung</span><select class="select-control" data-filter="sort">${sorts.map(value=>`<option value="${value}" ${filters.sort===value?'selected':''}>${SORT_LABELS[value]||value}</option>`).join('')}</select></label>
+      <button type="button" class="icon-button fig-direction" data-direction title="Reihenfolge umkehren" aria-label="Reihenfolge umkehren">${(filters.direction||defaultDirection(filters.sort))==='asc'?'↑':'↓'}</button>`}
+      ${Object.entries(filters).some(([name,value])=>value&&!['sort','direction','mode',locked].includes(name))?'<button type="button" class="link-button" data-filter-reset>Filter zurücksetzen</button>':''}
     </div>
   </div>`;
 }
@@ -139,6 +144,107 @@ function wireFilterBar(root,filters,render,reset){
   $('[data-filter-reset]',bar)?.addEventListener('click',()=>{reset();render()});
 }
 const filterQuery=filters=>new URLSearchParams(Object.entries(filters).filter(([,value])=>value!==''&&value!=null)).toString();
+
+// ---- Groups: a grid's figures side by side by franchise, brand, manufacturer or line ---------
+
+const GROUPINGS=[['series','Franchise','Franchises'],['brand','Marke','Marken'],['manufacturer','Hersteller','Hersteller'],['line','Linie','Linien']];
+const GROUP_SORT_LABELS={name:'Name',count:'Anzahl Figuren',owned:'Anteil in der Sammlung',value:'Wert',release:'Neueste Erscheinung'};
+// A filter value for the figures without a value in that field (figures.py NONE_VALUE).
+const NONE_VALUE='__none__';
+const groupingLabel=(by,many=false)=>GROUPINGS.find(([key])=>key===by)?.[many?2:1]||'';
+const groupName=(by,name)=>name||`Ohne ${groupingLabel(by)}`;
+
+// The kind each grid was last shown in comes back with the user's settings.
+function restoreGroupings(saved){
+  if(!saved||typeof saved!=='object')return;
+  for(const [view,by] of Object.entries(saved)){
+    if(state.grouping[view]&&(by===''||GROUPINGS.some(([key])=>key===by)))state.grouping[view].by=by;
+  }
+}
+
+// What a grid asks the server for: its filters and, while it shows groups, their kind and order.
+function gridQuery(filters,grouping){
+  const query=filterQuery(filters);
+  return grouping.by&&!grouping.open?`${query}${query?'&':''}group=${grouping.by}&group_sort=${grouping.sort}`:query;
+}
+
+// A filter changed in the bar may have moved off the open group: the select of the grouped field
+// then picks another group, or with "Alle" goes back to the groups.
+function syncOpenGroup(filters,grouping){
+  const open=grouping.open;
+  if(!open)return;
+  const value=filters[open.by]||'';
+  if(value===(open.name||NONE_VALUE))return;
+  grouping.open=value?{by:open.by,name:value===NONE_VALUE?'':value}:null;
+}
+
+function groupSwitch(view){
+  const grouping=state.grouping[view];
+  const button=(key,label)=>`<button type="button" role="tab" aria-selected="${grouping.by===key}" data-group-by="${key}" class="${grouping.by===key?'active':''}">${label}</button>`;
+  return `<div class="segmented fig-group-switch" role="tablist" aria-label="Anzeigen als" data-scroll-x>${button('','Figuren')}${GROUPINGS.map(([key,label])=>button(key,label)).join('')}</div>`;
+}
+
+// Wires the switch, the group sort and the way back. Leaving an open group drops its filter.
+function wireGroups(root,view,filters,render){
+  const grouping=state.grouping[view];
+  const close=()=>{if(grouping.open){filters[grouping.open.by]='';grouping.open=null}};
+  $$('[data-group-by]',root).forEach(button=>button.onclick=()=>{
+    close();grouping.by=button.dataset.groupBy;
+    saveSettingSoon('groupings',Object.fromEntries(Object.entries(state.grouping).map(([key,value])=>[key,value.by])));
+    render();
+  });
+  $('[data-group-sort]',root)?.addEventListener('change',event=>{grouping.sort=event.target.value;render()});
+  $('[data-group-back]',root)?.addEventListener('click',()=>{close();render()});
+}
+
+function openGroup(view,filters,name,render){
+  const grouping=state.grouping[view];
+  grouping.open={by:grouping.by,name};
+  filters[grouping.by]=name||NONE_VALUE;
+  render();
+  window.scrollTo({top:0});
+}
+
+// The head over an open group's figures: the way back to the groups, the group and its numbers.
+function groupHead(view,{count,owned=null,actions=''}){
+  const {by,open}=state.grouping[view];
+  const back=`Zurück zu allen ${groupingLabel(by,true)}`;
+  return `<div class="fig-group-head">
+    <button type="button" class="icon-button fig-group-back" data-group-back title="${back}" aria-label="${back}">←</button>
+    <div class="fig-group-title"><span class="eyebrow">${escapeHtml(groupingLabel(by).toUpperCase())}</span><h2>${escapeHtml(groupName(by,open.name))}</h2>
+      <small>${[plural(count,'Figur','Figuren'),owned!=null?`${owned} in der Sammlung`:''].filter(Boolean).join(' · ')}</small></div>
+    ${actions?`<div class="fig-group-actions">${actions}</div>`:''}
+  </div>`;
+}
+
+// One group: up to four of its figures as a mosaic, its name and numbers. stats(group) gives the
+// lines under the name and, optionally, a share (0 to 1) for the bar.
+function groupTile(by,group,stats){
+  const {lines,share=null}=stats(group);
+  const name=groupName(by,group.name);
+  const samples=group.samples.length?group.samples:[null];
+  return `<article class="fig-group-tile${group.name?'':' fig-group-none'}" data-group="${escapeHtml(group.name)}" tabindex="0" role="button" aria-label="${escapeHtml(name)} öffnen">
+    <div class="fig-group-art" data-count="${samples.length}">${samples.map(sample=>sample?`<img loading="lazy" decoding="async" src="${figureThumb(sample)}" alt="">`:'<span></span>').join('')}</div>
+    <div class="fig-group-meta">
+      <b title="${escapeHtml(name)}">${escapeHtml(name)}</b>
+      ${lines.filter(Boolean).map(line=>`<small>${line}</small>`).join('')}
+      ${share!=null?`<span class="fig-group-share" title="${Math.round(share*100)} % in der Sammlung"><i style="--share:${Math.round(share*100)}%"></i></span>`:''}
+    </div>
+  </article>`;
+}
+
+const GROUP_MISSING={series:'eine Franchise',brand:'eine Marke',manufacturer:'einen Hersteller',line:'eine Linie'};
+
+function renderGroupGrid(container,view,groups,{stats,empty,onOpen}){
+  const by=state.grouping[view].by;
+  if(!groups.length){container.innerHTML=empty;return}
+  const unnamed=groups.length===1&&!groups[0].name;
+  container.innerHTML=`${unnamed?`<div class="fig-hint"><b>Noch keine dieser Figuren hat ${GROUP_MISSING[by]}.</b><span>Trag sie im Formular der Figur ein${['brand','manufacturer'].includes(by)?' – für ganze Linien auf einmal mit einer Linien-Vorlage':''}.</span></div>`:''}
+    <div class="fig-group-grid">${groups.map(group=>groupTile(by,group,stats)).join('')}</div>`;
+  const grid=$('.fig-group-grid',container);
+  grid.addEventListener('click',event=>{const tile=event.target.closest('[data-group]');if(tile)onOpen(tile.dataset.group)});
+  grid.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-group]')){event.preventDefault();onOpen(event.target.dataset.group)}});
+}
 
 // ---- The figure dialog ------------------------------------------------------------------------
 

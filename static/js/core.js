@@ -11,9 +11,14 @@ const defaultCatalogFilters=()=>({q:'',mode:'all',...FIGURE_FACETS(),sort:'relea
 const defaultCollectionFilters=()=>({q:'',...FIGURE_FACETS(),location:'',condition:'',sort:'added',direction:'desc'});
 const defaultWatchFilters=()=>({q:'',mode:'all',...FIGURE_FACETS(),sort:'wished',direction:'desc'});
 
+// A grid shown in groups (figures.py GROUPINGS): the kind ('' = the figures themselves), how the
+// groups are sorted, and the group that is open ({by, name}; its figures are the grid filtered by it).
+const defaultGrouping=()=>({by:'',sort:'name',open:null});
+
 const state={
   boot:null, route:'dashboard', edit:false, view:'grid',
   catalogFilters:defaultCatalogFilters(), collectionFilters:defaultCollectionFilters(), watchFilters:defaultWatchFilters(),
+  grouping:{catalog:defaultGrouping(),collection:defaultGrouping(),watch:defaultGrouping()},
   watchlistId:null, preorderStatus:'open', modalFigure:null, modalTab:'copies', suggestions:null, mobileFiltersOpen:{}, gridFigures:[],
 };
 

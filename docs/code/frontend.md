@@ -6,7 +6,7 @@
 
 ### core.js
 
-- `state` - `boot` (the bootstrap answer), `route`, `edit` (quick edit: ＋ on tiles), filters per view (`catalogFilters`, `collectionFilters`, `watchFilters` with `default…Filters()`), `watchlistId`, `preorderStatus`, `modalFigure`, `modalTab`, `suggestions`, `gridFigures`.
+- `state` - `boot` (the bootstrap answer), `route`, `edit` (quick edit: ＋ on tiles), filters per view (`catalogFilters`, `collectionFilters`, `watchFilters` with `default…Filters()`, all with the value filters of `FIGURE_FACETS()`), `grouping` per grid (`catalog`, `collection`, `watch`: `{by, sort, open}`, `defaultGrouping()`; the kind each grid shows comes back from the setting `groupings`), `watchlistId`, `preorderStatus`, `modalFigure`, `modalTab`, `suggestions`, `gridFigures`.
 - `APP_ROOT` - the path the app is served under, from `<html data-root>` (the request's script root: `''` at the root, `/figures` behind a proxy that strips it); `appUrl(path)` puts it in front of a path starting with `/`. Every address of the app goes through it: `api` does it for every call, and `figureThumb`/`figureImage`, the CSV and SSO links and the bookmarklet use it. `public.js` reads the same attribute.
 - `api(url, options)`, `post`, `patch`, `del` - JSON; 401 goes to `/login`; errors carry `status` and `data`.
 - `routeTo(route, data)` - `dashboard`, `catalog`, `collection`, `watchlist`, `preorders`, `settings`, `admin`; `renderGuard()` lets a late answer drop itself; `refreshCurrentView()`, `refreshCounts()`, `paintCounts()` (`[data-count]` badges).
@@ -16,7 +16,8 @@
 ### figures-ui.js
 
 - `figureTile(figure, {note, value, badge})`, `renderFigureGrid(container, figures, {tile, empty})` (pages of 180, the next loads on scroll), `toggleWish`, `quickAddCopy`.
-- `filterBar({...})` / `wireFilterBar(root, filters, render, reset)`, `filterQuery(filters)`.
+- `filterBar({...})` / `wireFilterBar(root, filters, render, reset)`, `filterQuery(filters)`. With `grouping`, the bar sorts the groups (`data-group-sort`) and leaves out the filter of the grouped field; in an open group that filter is the group and does not count for "Filter zurücksetzen".
+- Groups (catalogue, collection, wishlist alike): `groupSwitch(view)` (Figuren · Franchise · Marke · Hersteller · Linie), `wireGroups(root, view, filters, render)`, `gridQuery(filters, grouping)`, `syncOpenGroup` (the filter select of the grouped field picks another group, "Alle" goes back), `openGroup(view, filters, name, render)`, `groupHead(view, {count, owned, actions})`, `groupTile(by, group, stats)` (a mosaic of up to four figures), `renderGroupGrid(container, view, groups, {stats, empty, onOpen})`, `restoreGroupings`, `GROUPINGS`, `NONE_VALUE`.
 - `openFigure(id, tab)` - the figure dialog (`#figure-modal`) with tabs `copies`, `preorders`, `value`, `lists`, `info`; `afterChange()` reloads it, the counts and the view.
 - `openEntryDialog(figure, entry)`, `openPreorderDialog(figure, preorder, prefill)`, `openWishDialog(id)`, `openImageDialog(figure)`, `openFigureForm(prefill, {figureId, importResult})` (create/edit with link import; "Danach" opens the copy or preorder dialog or wishes). Both picture file fields offer `PICTURE_TYPES` (JPEG, PNG, WebP, GIF, AVIF, as images.py takes them); the server checks the file itself.
 - `bookmarkletHref()` - the `javascript:` link; `handleImportFragment()` - reads `#import=<snapshot>` at start-up and opens the form.

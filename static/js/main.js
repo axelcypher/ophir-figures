@@ -41,6 +41,7 @@ async function init(){
     $('#user-name').textContent=u.display_name;$('#user-role').textContent=u.role==='admin'?'Administrator':'Sammler';$('#user-avatar').textContent=initials(u.display_name);
     document.body.classList.toggle('is-admin',u.role==='admin');
     if(settings.sidebarCollapsed)document.body.classList.add('sidebar-collapsed');
+    restoreGroupings(settings.groupings);
     applyAppearance();wireGlobalEvents();paintCounts();
     document.body.dataset.route='dashboard';renderDashboard();
     // Back from a self-service SSO "Verbinden" click in Settings: its outcome as a toast, once.

@@ -7,7 +7,7 @@ A copy is worth the figure's current market value, or else what was paid for it 
 from flask import jsonify, request
 
 from .config import now_iso
-from .figures import apply_filters, facets, figure_list_sql, list_item, normalize_date, sort_items
+from .figures import apply_filters, facets, figure_list_sql, grouped, list_item, normalize_date, sort_items
 from .prices import collection_value_sql, market_value_sql, parse_amount
 from .web import app, db, login_required, user_id
 
@@ -109,8 +109,8 @@ def get_collection():
         for place in item.get("locations", []):
             locations[place] = locations.get(place, 0) + 1
     result_facets["location"] = sorted(([place, count] for place, count in locations.items()), key=lambda pair: (-pair[1], pair[0]))
-    return jsonify({"figures": items, "stats": collection_stats(all_items), "shown": collection_stats(items),
-                    "facets": result_facets, "conditions": CONDITIONS})
+    answer = {"stats": collection_stats(all_items), "shown": collection_stats(items), "facets": result_facets, "conditions": CONDITIONS}
+    return jsonify({**answer, **(grouped(args, items, "value") or {"figures": items})})
 
 
 def entry_row(entry_id, uid):

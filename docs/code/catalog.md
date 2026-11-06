@@ -8,13 +8,22 @@
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/figures` | Every figure as a list item (catalogue fields, `has_image`, `image_version`, and for the signed-in account `owned`, `preordered` (open), `wished`, plus `market_value`). Args: `mode` (`all`/`owned`/`missing`/`wished`/`preordered`), `q`, the value filters `series` (franchise), `brand`, `manufacturer`, `line`, `category`, `scale` (each also `__none__`: figures without a value), `character`, `year` (or `none`), `sort` (`release`/`name`/`added`/`value`, or the text sorts `series`/`brand`/`manufacturer`/`line`), `direction`. Returns `{figures, total, facets}`; facets are over the whole catalogue. |
+| GET | `/api/figures` | Every figure as a list item (catalogue fields, `has_image`, `image_version`, and for the signed-in account `owned`, `preordered` (open), `wished`, plus `market_value`). Args: `mode` (`all`/`owned`/`missing`/`wished`/`preordered`), `q`, the value filters `series` (franchise), `brand`, `manufacturer`, `line`, `category`, `scale` (each also `__none__`: figures without a value), `character`, `year` (or `none`), `sort` (`release`/`name`/`added`/`value`, or the text sorts `series`/`brand`/`manufacturer`/`line`), `direction`, and `group` / `group_sort` (below). Returns `{figures, total, shown, facets}`; facets are over the whole catalogue. |
 | GET | `/api/figures/suggestions` | Autocomplete values: catalogue columns by frequency, characters, the account's own shops and storage places, `currencies`. |
 | GET | `/api/figures/<id>` | Detail: all columns, `attributes`, `created_by_name`, `can_delete`, and the account's `entries`, `preorders` (preorders.preorder_rows), `lists`, plus `prices` and `owners`. 404 when unknown. |
 | POST | `/api/figures` | Create. Fields as `clean_figure_fields` reads them; `market_value` adds a first price observation (`source` `import` with `from_import`); `force` skips the duplicate check. 409 `{error, duplicate_id}` for a duplicate. Fetches `image_url` at once; a failure comes back as `image_error`, the link is kept. 201 with the detail. |
 | PATCH | `/api/figures/<id>` | Update any subset; duplicate check against the merged row; a changed `image_url` is fetched again. |
 | DELETE | `/api/figures/<id>` | Only while no account uses it (409) and only by its creator or an admin (403). |
 | GET | `/api/search?q=&limit=` | Quick search: best-scored list items, at least two characters. |
+
+### Groups
+
+The catalogue, the collection and a wishlist can answer with their figures in groups instead (`?group=<kind>`): `series` (Franchise), `brand` (Marke), `manufacturer` (Hersteller) or `line` (Linie) - kinds side by side, none above another. The grid's filters, mode and sort apply first; the answer then has `group` and `groups` in place of `figures`, the rest stays (`total`, `shown`, `facets`, `stats` ...).
+
+- A group: `name` (`""` for the figures without a value, always last), `count`, `owned` (figures in the collection), `copies`, `preordered`, `wished`, `target_reached` (wishlist entries), `value` (the sum of the market values; in the collection what the copies are worth), `spent` (collection), `latest_release`, `samples` (up to four `{id, name, has_image, image_version}`, those with a picture first, in the grid's order).
+- `group_sort`: `name` (default, A-Z), `count`, `owned` (share of the group in the collection), `value`, `release` (latest release first). Equal groups stay A-Z.
+- Opening a group is filtering by it: `series=Re:Zero`, or `series=__none__` for the group without a value.
+- `group_items(items, by, sort, value_key)`, `grouped(args, items, value_key)` (None when no valid `group` was asked for), `GROUPINGS`, `GROUP_SORTS`.
 
 Helpers used by other modules: `normalize_date` (`2025`, `2025-03`, `14.03.2025`, `03/2025`, `03/14/2025`, `March 2025`, `2025年3月` -> ISO with the given precision; returns `(value, error)`), `split_list` (characters), `clean_figure_fields`, `find_duplicate` (same JAN, same `source_url`, or same folded name+manufacturer+edition), `figure_list_sql(where)` (the list query; `?1` is the user id), `list_item`, `apply_filters`, `sort_items`, `facets`, `in_use`, `CATEGORIES`, `FACET_FIELDS` (the value filters, in the order the facets list them), `NONE_VALUE` (`__none__`), `TEXT_SORTS`.
 

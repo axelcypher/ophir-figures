@@ -248,6 +248,62 @@ def facets(items):
     return {key: ordered(key, counts) for key, counts in result.items()}
 
 
+# The kinds of groups a grid can show its figures in, side by side: ?group=<kind>.
+GROUPINGS = {"series": "Franchise", "brand": "Marke", "manufacturer": "Hersteller", "line": "Linie"}
+GROUP_SORTS = ("name", "count", "owned", "value", "release")
+GROUP_SAMPLES = 4
+
+
+def group_items(items, by, sort="name", value_key="market_value"):
+    """The figures of a grid grouped by one field (GROUPINGS), each group with its counts, what its
+    figures are worth (value_key: the market values in the catalogue, the copies' value in the
+    collection), its latest release and up to four figures to show, those with a picture first.
+    The group of figures without a value (name "") comes last whatever the order."""
+    groups = {}
+    for item in items:
+        name = item.get(by) or ""
+        group = groups.get(name)
+        if group is None:
+            group = groups[name] = {"name": name, "count": 0, "owned": 0, "copies": 0, "preordered": 0, "wished": 0, "target_reached": 0,
+                                    "value": 0.0, "spent": 0.0, "latest_release": "", "pictured": [], "plain": []}
+        group["count"] += 1
+        group["owned"] += 1 if item.get("owned") else 0
+        group["copies"] += item.get("owned") or 0
+        for flag in ("preordered", "wished", "target_reached"):
+            group[flag] += 1 if item.get(flag) else 0
+        group["value"] += item.get(value_key) or 0
+        group["spent"] += item.get("spent") or 0
+        group["latest_release"] = max(group["latest_release"], item.get("release_date") or "")
+        samples = group["pictured"] if item.get("has_image") else group["plain"]
+        if len(samples) < GROUP_SAMPLES:
+            samples.append({"id": item["id"], "name": item["name"], "has_image": item.get("has_image", False), "image_version": item.get("image_version", "")})
+    result = []
+    for group in groups.values():
+        pictured, plain = group.pop("pictured"), group.pop("plain")
+        group.update(samples=(pictured + plain)[:GROUP_SAMPLES], value=round(group["value"], 2), spent=round(group["spent"], 2))
+        result.append(group)
+    # Sorted in passes, each stable: A-Z first, so equal groups stay in that order.
+    result.sort(key=lambda group: search.fold(group["name"]))
+    if sort == "count":
+        result.sort(key=lambda group: group["count"], reverse=True)
+    elif sort == "owned":
+        result.sort(key=lambda group: (group["owned"] / group["count"], group["count"]), reverse=True)
+    elif sort == "value":
+        result.sort(key=lambda group: group["value"], reverse=True)
+    elif sort == "release":
+        result.sort(key=lambda group: group["latest_release"], reverse=True)
+    result.sort(key=lambda group: not group["name"])
+    return result
+
+
+def grouped(args, items, value_key="market_value"):
+    """A grid's figures in groups when the request asks for them (?group=<kind>&group_sort=...),
+    else None. The groups are made after the grid's filters and sort, so their samples follow it."""
+    if args.get("group") not in GROUPINGS:
+        return None
+    return {"group": args["group"], "groups": group_items(items, args["group"], args.get("group_sort", "name"), value_key)}
+
+
 @app.get("/api/figures")
 @login_required
 def list_figures():
@@ -264,7 +320,8 @@ def list_figures():
     elif mode == "preordered":
         items = [item for item in items if item["preordered"]]
     items = sort_items(apply_filters(items, args), args.get("sort", "release"), args.get("direction"))
-    return jsonify({"figures": items, "total": len(all_items), "facets": facets(all_items)})
+    answer = {"total": len(all_items), "shown": len(items), "facets": facets(all_items)}
+    return jsonify({**answer, **(grouped(args, items) or {"figures": items})})
 
 
 @app.get("/api/figures/suggestions")

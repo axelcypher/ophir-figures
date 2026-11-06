@@ -58,6 +58,35 @@ describe('app in the browser', { skip }, () => {
     noProblems();
   });
 
+  test('the catalogue groups by franchise, brand, manufacturer or line and opens a group', async () => {
+    await page.route('catalog');
+    await click('[data-group-by="series"]');
+    await page.waitFor(`document.querySelectorAll('.fig-group-tile').length===4`, { message: 'the franchise groups' });
+    assert.equal(await page.evaluate(`document.querySelector('[data-filter="series"]')`), null, 'no franchise filter while showing franchises');
+    assert.match(await text('.fig-count'), /4 Franchises · 5 Figuren/);
+    await click('.fig-group-tile[data-group="Re:Zero"]');
+    await page.waitFor(`document.querySelectorAll('.fig-tile').length===2&&document.querySelector('.fig-group-head h2')?.innerText==='Re:Zero'`, { message: 'the open group' });
+    assert.equal(await page.evaluate(`document.querySelector('[data-filter="series"]').value`), 'Re:Zero');
+    assert.equal(await page.evaluate(`document.querySelector('[data-filter-reset]')`), null, 'the open group is no filter to reset');
+    await click('[data-group-back]');
+    await page.waitFor(`document.querySelectorAll('.fig-group-tile').length===4&&!document.querySelector('.fig-group-head')`, { message: 'back to the groups' });
+
+    await click('[data-group-by="brand"]');
+    await page.waitFor(`document.querySelector('.fig-hint')&&document.querySelectorAll('.fig-group-tile').length===1`, { message: 'the hint that no figure has a brand' });
+    await click('.fig-group-tile');
+    await page.waitFor(`document.querySelectorAll('.fig-tile').length===5&&document.querySelector('.fig-group-head h2')?.innerText==='Ohne Marke'`, { message: 'the figures without a brand' });
+
+    await click('[data-group-by="line"]');
+    await page.waitFor(`document.querySelectorAll('.fig-group-tile').length===4&&document.querySelector('.fig-group-tile:last-child')?.innerText.includes('Ohne Linie')`, { message: 'figures without a line last' });
+    await page.evaluate(`(()=>{const select=document.querySelector('[data-group-sort]');select.value='count';select.dispatchEvent(new Event('change'));return 1})()`);
+    await page.waitFor(`document.querySelector('[data-group-sort]')?.value==='count'&&document.querySelector('.fig-group-tile:last-child')?.innerText.includes('Ohne Linie')`, { message: 'the groups by size' });
+    await page.waitFor(`JSON.stringify(state.boot.settings.groupings)==='{"catalog":"line","collection":"","watch":""}'`, { message: 'the kind to be remembered' });
+
+    await click('[data-group-by=""]');
+    await page.waitFor(`document.querySelectorAll('.fig-tile').length===5&&document.querySelector('[data-group-by=""]').classList.contains('active')`, { message: 'the figures again' });
+    noProblems();
+  });
+
   test('a figure is created from a link and put into the collection', async () => {
     await page.evaluate(`(openFigureForm(),1)`);
     await page.waitFor(`document.querySelector('#import-url')`);
@@ -74,7 +103,8 @@ describe('app in the browser', { skip }, () => {
     await page.waitFor(`!document.querySelector('#entry-dialog')&&state.modalFigure?.owned===1`, { message: 'the copy to be saved' });
     await page.evaluate(`(closeOverlay('figure-modal'),1)`);
     await page.route('collection');
-    assert.ok((await text('#content')).includes('Saber Alter 1/7'));
+    const collection = await text('#content');
+    assert.ok(collection.includes('Saber Alter 1/7'), collection);
     noProblems();
   });
 

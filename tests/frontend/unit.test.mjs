@@ -97,6 +97,41 @@ describe('figure views', () => {
   });
 });
 
+describe('groups', () => {
+  test('a grid asks for groups only while it shows them, not inside an open group', () => {
+    assert.equal(run(`gridQuery({q:'Rem',series:''},{by:'series',sort:'count',open:null})`), 'q=Rem&group=series&group_sort=count');
+    assert.equal(run(`gridQuery({},{by:'line',sort:'name',open:null})`), 'group=line&group_sort=name');
+    assert.equal(run(`gridQuery({series:'Re:Zero'},{by:'series',sort:'name',open:{by:'series',name:'Re:Zero'}})`), 'series=Re%3AZero');
+    assert.equal(run(`gridQuery({q:'x'},{by:'',sort:'name',open:null})`), 'q=x');
+  });
+
+  test('the filter of the grouped field moves between groups or back to them', () => {
+    const sync = (value, open) => run(`(()=>{const grouping={by:'series',sort:'name',open:${JSON.stringify(open)}};syncOpenGroup({series:${JSON.stringify(value)}},grouping);return grouping.open})()`);
+    assert.deepEqual(sync('Vocaloid', { by: 'series', name: 'Re:Zero' }), { by: 'series', name: 'Vocaloid' });
+    assert.deepEqual(sync('__none__', { by: 'series', name: 'Re:Zero' }), { by: 'series', name: '' });
+    assert.equal(sync('', { by: 'series', name: 'Re:Zero' }), null, '"Alle" goes back to the groups');
+    assert.deepEqual(sync('__none__', { by: 'series', name: '' }), { by: 'series', name: '' }, 'the group without a value stays open');
+  });
+
+  test('a group tile names the group, shows its figures and escapes what users typed', () => {
+    const tile = run(`groupTile('brand',{name:'<b>F:NEX</b>',count:3,owned:1,samples:[{id:1,image_version:'abc'},{id:2,image_version:''}]},catalogGroupStats)`);
+    assert.match(tile, /data-group="&lt;b&gt;F:NEX&lt;\/b&gt;"/);
+    assert.match(tile, /data-count="2"/);
+    assert.match(tile, /\/images\/figures\/1\/thumb\?v=abc/);
+    assert.match(tile, /3 Figuren[\s\S]*1 in der Sammlung[\s\S]*--share:33%/);
+    const none = run(`groupTile('brand',{name:'',count:2,owned:0,samples:[]},catalogGroupStats)`);
+    assert.match(none, /Ohne Marke/);
+    assert.match(none, /fig-group-none/);
+    assert.match(none, /data-count="1"><span><\/span>/, 'an empty mosaic still has its picture area');
+  });
+
+  test('the kind a grid was shown in comes back, nothing unknown', () => {
+    run(`restoreGroupings({catalog:'line',collection:'price',watch:''})`);
+    assert.deepEqual(run(`[state.grouping.catalog.by,state.grouping.collection.by,state.grouping.watch.by]`), ['line', '', '']);
+    run(`state.grouping.catalog.by=''`);
+  });
+});
+
 describe('the bookmarklet', () => {
   const href = run(`bookmarkletHref()`);
   const code = decodeURIComponent(href.slice('javascript:'.length));

@@ -8,7 +8,7 @@
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/collection` | Owned figures as list items plus `spent`, `unpriced`, `value`, `conditions`, `locations`, `added_at`, `purchased_at`. Filters as the catalogue plus `location` and `condition`; sorts as the catalogue plus `added`, `purchased`, `spent`, `collection_value`. Returns `{figures, stats, shown, facets (with location), conditions}`; `stats` over the whole collection, `shown` over the filtered one. |
+| GET | `/api/collection` | Owned figures as list items plus `spent`, `unpriced`, `value`, `conditions`, `locations`, `added_at`, `purchased_at`. Filters as the catalogue plus `location` and `condition`; sorts as the catalogue plus `added`, `purchased`, `spent`, `collection_value`. Returns `{figures, stats, shown, facets (with location), conditions}`; `stats` over the whole collection, `shown` over the filtered one. `group`/`group_sort` as in the catalogue (catalog.md), with the copies' `value` and `spent` per group. |
 | POST | `/api/collection` | `{figure_id, quantity (1-999, default 1), condition (default boxed), purchase_price, purchased_at, shop, location, notes}`. 201 with the row. |
 | PATCH | `/api/collection/<id>` | Any subset; only the owner's rows (404 otherwise). |
 | DELETE | `/api/collection/<id>` | Returns `{deleted: row}`, enough to post it back (undo in the UI). |
@@ -25,7 +25,7 @@
 | POST | `/api/watchlists` | `{name}` (60 characters, unique per account ignoring case). |
 | PATCH | `/api/watchlists/<id>` | Rename. |
 | DELETE | `/api/watchlists/<id>` | Not the default list (400). |
-| GET | `/api/watchlists/<id>/figures` | List items plus `target_price`, `note`, `wished_at`, `target_reached` (market value <= target). Filters as the catalogue; `mode=missing` hides owned ones; sorts `wished` (default) or the catalogue's. `stats`: `count`, `owned`, `target_reached`, `estimate` (market values, else target prices). |
+| GET | `/api/watchlists/<id>/figures` | List items plus `target_price`, `note`, `wished_at`, `target_reached` (market value <= target). Filters as the catalogue; `mode=missing` hides owned ones; sorts `wished` (default) or the catalogue's. `stats`: `count`, `owned`, `target_reached`, `estimate` (market values, else target prices). `group`/`group_sort` as in the catalogue, with `target_reached` per group. |
 | POST | `/api/watchlists/<id>/figures` | `{figure_id, target_price, note}`; adding again only updates the given fields. Returns `{added, lists}`. |
 | PATCH | `/api/watchlists/<id>/figures/<figure_id>` | `target_price`, `note`. |
 | DELETE | `/api/watchlists/<id>/figures/<figure_id>` | Returns `{removed: {figure_id, target_price, note}, lists}`. |

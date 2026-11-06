@@ -9,7 +9,7 @@ An entry whose figure's market value has fallen to its target price or below is 
 from flask import jsonify, request
 
 from .config import now_iso
-from .figures import apply_filters, facets, figure_list_sql, list_item, sort_items
+from .figures import apply_filters, facets, figure_list_sql, grouped, list_item, sort_items
 from .prices import parse_amount
 from .web import app, db, login_required, user_id
 
@@ -111,7 +111,7 @@ def watchlist_figures(list_id):
     else:
         items = sort_items(items, sort, request.args.get("direction"))
     estimate = sum(item["market_value"] if item["market_value"] is not None else (item["target_price"] or 0) for item in all_items)
-    return jsonify({"list": dict(row), "figures": items, "facets": facets(all_items),
+    return jsonify({"list": dict(row), **(grouped(request.args, items) or {"figures": items}), "facets": facets(all_items),
                     "stats": {"count": len(all_items), "owned": sum(1 for item in all_items if item["owned"]),
                               "target_reached": sum(1 for item in all_items if item["target_reached"]), "estimate": round(estimate, 2)}})
 

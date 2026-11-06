@@ -25,7 +25,7 @@ SQLite  <DATA>/ophir-figures.db (WAL)  +  figure-images/  figure-thumbnails/
 | Area | Source | Doc |
 | --- | --- | --- |
 | Core: paths, the Flask app, request guards, schema and migrations | `app.py`, `config.py`, `web.py`, `schema.py`, `migrations/` | [database.md](database.md) |
-| Catalogue, search, pictures, market values | `figures.py`, `search.py`, `images.py`, `prices.py`, `fetch.py` | [catalog.md](catalog.md) |
+| Catalogue, line presets, search, pictures, market values | `figures.py`, `line_presets.py`, `search.py`, `images.py`, `prices.py`, `fetch.py` | [catalog.md](catalog.md) |
 | Filling in a figure from a product page | `link_import.py`, `fetch.py`, bookmarklet in `static/js/figures-ui.js` | [link-import.md](link-import.md) |
 | Collection and wishlists | `collection.py`, `watchlists.py` | [collection.md](collection.md) |
 | Preorders | `preorders.py` | [preorders.md](preorders.md) |
@@ -47,7 +47,7 @@ SQLite  <DATA>/ophir-figures.db (WAL)  +  figure-images/  figure-thumbnails/
 
 All state is in the directory of `DATABASE_PATH` (`/data` in the container, the `ophir_figures_data` volume):
 
-- `ophir-figures.db` - users and settings (`users`, `login_failures` for the login throttle, `user_settings`, `app_settings`), the catalogue (`figures`, `price_observations`), account data (`collection_entries`, `watchlists`, `watchlist_entries`, `preorders`, `preorder_events`, `import_operations`) and `schema_migrations`.
+- `ophir-figures.db` - users and settings (`users`, `login_failures` for the login throttle, `user_settings`, `app_settings`), the catalogue (`figures`, `line_presets`, `price_observations`), account data (`collection_entries`, `watchlists`, `watchlist_entries`, `preorders`, `preorder_events`, `import_operations`) and `schema_migrations`.
 - `ophir-figures.db.before-migration-NNNN` - copies taken before a migration (two kept).
 - `figure-images/` - every picture once, named by the SHA-256 of its bytes (uploads cannot be fetched again: back this up); `figure-thumbnails/` - WebP thumbnails, rebuildable.
 - In the browser: only the theme cookie and nothing else (besides the session cookie and, with the shared sign-in, the host-wide `ophir_auth` cookie); there is no offline mode.

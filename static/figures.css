@@ -191,6 +191,28 @@ body .dl-modal textarea.dl-control { min-height:70px;font:500 13px/1.5 var(--fon
 .fig-pick-results { display:grid;gap:4px;max-height:50dvh;overflow:auto; }
 .fig-bookmarklet-row { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
 .fig-bookmarklet-row .primary-button { text-decoration:none; }
+/* The figure form in sections, each under a small heading with a hairline. */
+.fig-form-section { display:grid;gap:10px;padding-top:14px;border-top:1px solid var(--ds-line); }
+#import-result + .fig-form-section, .fig-import + #import-result:empty + .fig-form-section { border-top:0;padding-top:4px; }
+body.dark.mobile-modern .fig-form-section > h3 { margin:0;color:var(--muted);font:800 10.5px/1.2 var(--font-ui,inherit);letter-spacing:.09em;text-transform:uppercase; }
+.fig-preset-hint { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:0;color:var(--muted);font-size:12.5px;line-height:1.45; }
+.fig-preset-hint:empty { display:none; }
+.fig-preset-hint b { color:var(--ink); }
+.fig-preset-hint span { display:inline; }
+.fig-preset-badge { display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--ds-accent-soft);color:var(--fig-gold);font-size:10px;font-weight:800;letter-spacing:.02em;vertical-align:1px; }
+.fig-group-detail { color:var(--fig-gold)!important;font-weight:700; }
+
+/* ---- Line presets ------------------------------------------------------------------------ */
+.fig-section-head { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 10px; }
+.fig-section-head h3 { margin:0;font-size:17px; }
+.fig-section-head h3 small { margin-left:6px;color:var(--muted);font:700 12px var(--font-ui,inherit);letter-spacing:0; }
+.fig-rows + .fig-section-head, .fig-empty-soft + .fig-section-head { margin-top:22px; }
+.fig-preset-row { flex-wrap:wrap; }
+.fig-row > .fig-preset-main { flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:12.5px; }
+.fig-row > .fig-row-actions { flex:none;flex-direction:row;align-items:center;gap:6px; }
+.fig-preset-main b { font-size:14px; }
+.fig-incomplete { color:var(--fig-warn);font-weight:700; }
+.fig-empty-soft { padding:18px;border:1px dashed var(--ds-line-strong);border-radius:var(--ds-radius-row,14px);color:var(--muted);font-size:13px;text-align:center; }
 
 /* ---- Preorders --------------------------------------------------------------------------- */
 .fig-preorder-tabs { margin:16px 0; }

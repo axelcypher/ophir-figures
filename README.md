@@ -6,6 +6,7 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
 
 - Local accounts with user and admin roles; optional sign-in through one OAuth2/OIDC provider; optionally one sign-in shared with the other Ophir apps on the same host (Ophir Cards)
 - Shared catalogue: name, original name, characters, franchise, manufacturer, brand, category, line, scale, height, edition, release date, retail price with currency, JAN, sculptor, material, source link, picture; filters, sorting and a forgiving search (`Rem|Ram` for alternatives, a letter off is fine)
+- Line presets: what a product line fixes (brand, manufacturer, category, scale, material) is kept once per line and fills itself in when the line is chosen or a link import brings it; a preset can also fill the empty fields of the line's figures already in the catalogue
 - Groups side by side: the catalogue, the collection and every wishlist can show their figures by franchise, brand, manufacturer or line, each group with a few pictures, how many figures it has and how many of them are in the collection; a group opens to its figures
 - Figures from a link: paste a product page and the form fills itself from its JSON-LD, meta tags and spec tables; for pages that refuse automatic requests (MyFigureCollection, AmiAmi, Kotobukiya, HobbySearch …) the bookmarklet "Zu Ophir Figures" reads the page in your own browser
 - Duplicate check (same JAN, same link, or same name, manufacturer and edition) and, for admins, merging duplicates
@@ -96,6 +97,12 @@ Works as in DeckLedger: configured under **Admin → Single Sign-On** (stored in
 **＋ Figur** opens the form. A link pasted at the top is read by the server: shop pages with JSON-LD (Shopify shops, many manufacturer pages) fill name, picture, manufacturer, JAN, price and, where the page has them as label/value pairs, series, characters, release date, scale, height, sculptor and material. Requests go only to public addresses (no local network), with a 15 s timeout and size limits.
 
 Many figure sites answer server requests with a bot check. For those, drag **★ Zu Ophir Figures** from **Einstellungen** (or from the form) into the bookmarks bar and click it on the product page: it reads the page you have open and opens Ophir Figures with the form filled in. The data travels in the address's fragment (`#import=…`), which never reaches a server log.
+
+### Groups and line presets
+
+**Katalog**, **Sammlung** and **Wunschlisten** switch between their figures and groups of them: **Franchise**, **Marke**, **Hersteller**, **Linie**. A group opens to its figures; the arrow leads back. Search and filters apply to the groups too, and each grid remembers the kind it was last shown in.
+
+**Linien-Vorlagen** in the catalogue keep what a line fixes, e.g. figma: Max Factory, Good Smile Company, figma, Non-Scale. Choosing that line in the figure form fills those fields (a value already typed stays, and the form offers the preset's), and a link import fills from it what the page leaves out. The dialog also lists the catalogue's lines without a preset, starting a new one from what their figures mostly say, and **Ergänzen** fills the empty fields of a line's figures already in the catalogue. The form offers **Als Vorlage speichern** for a line without one.
 
 ### Preorders
 

@@ -29,5 +29,5 @@ Restore:
 
 ## Decisions and assumptions
 
-- Market values in a backup are informational and not restored: they are shared catalogue data, not the account's.
+- Market values in a backup are informational and not restored: they are shared catalogue data, not the account's. Line presets are not in it for the same reason.
 - Pictures are not included (size); `image_url` is, and an instance re-downloads it on first view. Uploaded pictures are only in the data volume.

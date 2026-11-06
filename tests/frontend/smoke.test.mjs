@@ -87,6 +87,41 @@ describe('app in the browser', { skip }, () => {
     noProblems();
   });
 
+  test('a line preset starts from the catalogue, completes its figures and fills the form', async () => {
+    await page.route('catalog');
+    await click('#catalog-presets');
+    await page.waitFor(`document.querySelector('#line-presets [data-line-create]')`, { message: 'the presets dialog with the lines that have none' });
+    assert.match(await text('#line-presets'), /Noch keine Vorlage[\s\S]*figma/);
+    await page.evaluate(`([...document.querySelectorAll('#line-presets .fig-preset-row')].find(row=>row.innerText.startsWith('figma')).querySelector('[data-line-create]').click(),1)`);
+    await page.waitFor(`document.querySelector('#preset-form [data-field="manufacturer"]')?.value==='Max Factory'`, { message: "the preset to start from what the line's figures say" });
+    assert.equal(await page.evaluate(`document.querySelector('#preset-form [data-field="category"]').value`), 'figma');
+    await fill('#preset-form [data-field="brand"]', 'Good Smile Company');
+    await click('#preset-save');
+    await page.waitFor(`!document.querySelector('#preset-form')&&document.querySelector('#line-presets [data-preset-apply]')`, { message: 'the preset in the list, its figure incomplete' });
+    await click('#line-presets [data-preset-apply]');
+    await page.waitFor(`!document.querySelector('#line-presets [data-preset-apply]')`, { message: "the line's figures completed" });
+    assert.equal(await page.evaluate(`api('/api/figures/3').then(figure=>figure.brand)`), 'Good Smile Company');
+    await page.evaluate(`(closeDialog(),1)`);
+
+    await page.evaluate(`(openFigureForm(),1)`);
+    await page.waitFor(`document.querySelector('#figure-form [data-field="line"]')`);
+    await fill('#figure-form [data-field="manufacturer"]', '');
+    await fill('#figure-form [data-field="line"]', 'FIGMA');
+    await page.waitFor(`document.querySelector('#figure-form [data-field="manufacturer"]').value==='Max Factory'`, { message: 'the preset to fill the form' });
+    assert.deepEqual(await page.evaluate(`['brand','category','scale'].map(key=>document.querySelector('#figure-form [data-field="'+key+'"]').value)`), ['Good Smile Company', 'figma', 'Non-Scale']);
+    assert.match(await text('#preset-hint'), /Vorlage „figma“ – übernommen: Marke, Hersteller, Kategorie, Maßstab/);
+    await fill('#figure-form [data-field="manufacturer"]', 'Good Smile Company');
+    await fill('#figure-form [data-field="line"]', 'Nendoroid');
+    await page.waitFor(`/Keine Vorlage für „Nendoroid“/.test(document.querySelector('#preset-hint').innerText)`, { message: 'the offer to save a preset' });
+    assert.equal(await page.evaluate(`document.querySelector('#figure-form [data-field="manufacturer"]').value`), 'Good Smile Company', 'a typed value stays');
+    await fill('#figure-form [data-field="line"]', 'figma');
+    await page.waitFor(`/Anders als in der Vorlage: Hersteller/.test(document.querySelector('#preset-hint').innerText)`, { message: 'the typed manufacturer kept and named' });
+    await click('#preset-hint [data-preset-take]');
+    await page.waitFor(`document.querySelector('#figure-form [data-field="manufacturer"]').value==='Max Factory'`);
+    await page.evaluate(`(closeDialog(),1)`);
+    noProblems();
+  });
+
   test('a figure is created from a link and put into the collection', async () => {
     await page.evaluate(`(openFigureForm(),1)`);
     await page.waitFor(`document.querySelector('#import-url')`);

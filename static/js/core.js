@@ -19,7 +19,7 @@ const state={
   boot:null, route:'dashboard', edit:false, view:'grid',
   catalogFilters:defaultCatalogFilters(), collectionFilters:defaultCollectionFilters(), watchFilters:defaultWatchFilters(),
   grouping:{catalog:defaultGrouping(),collection:defaultGrouping(),watch:defaultGrouping()},
-  watchlistId:null, preorderStatus:'open', modalFigure:null, modalTab:'copies', suggestions:null, mobileFiltersOpen:{}, gridFigures:[],
+  watchlistId:null, preorderStatus:'open', modalFigure:null, modalTab:'copies', suggestions:null, linePresets:null, mobileFiltersOpen:{}, gridFigures:[],
 };
 
 const $ = (q, root=document) => root.querySelector(q);

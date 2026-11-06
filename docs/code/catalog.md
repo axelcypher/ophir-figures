@@ -1,6 +1,6 @@
 # Catalogue, search, pictures and market values
 
-`figures.py` is the shared figure catalogue: listing with filters, details, create, update, delete, duplicate detection. `search.py` is how every search box matches; `images.py` stores and serves pictures; `prices.py` keeps market values; `fetch.py` is the guarded HTTP client for user-given links.
+`figures.py` is the shared figure catalogue: listing with filters, details, create, update, delete, duplicate detection. `line_presets.py` keeps what a product line fixes, so choosing the line fills it in. `search.py` is how every search box matches; `images.py` stores and serves pictures; `prices.py` keeps market values; `fetch.py` is the guarded HTTP client for user-given links.
 
 ## Public interface
 
@@ -29,6 +29,23 @@ Helpers used by other modules: `normalize_date` (`2025`, `2025-03`, `14.03.2025`
 
 - Text sorts go A-Z, then by name; figures without a value come last in either direction, by name.
 - `series` is shown as **Franchise** in the interface (the work a figure comes from); `brand` (**Marke**, migration 0004) is the label a figure is sold under (Tamashii Nations, F:NEX), `manufacturer` (**Hersteller**) the company that makes it (Bandai Spirits, FuRyu).
+
+### line_presets.py
+
+A preset per product line (`line_presets`, migration 0005) holds what the line usually fixes: `manufacturer`, `brand`, `category`, `scale`, `material` (`PRESET_FIELDS`). Shared like the catalogue: anyone signed in creates and corrects presets, only the creator or an admin deletes one. Lines are matched by `line_key` (spacing and case aside), one preset per line.
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/api/line-presets` | `{presets, lines, fields}`: every preset with `figures` (catalogue figures of the line), `incomplete` (of those, how many have an empty field the preset fills), `created_by_name`, `can_delete`; `lines` are the catalogue's lines without a preset, most figures first, each with `figures` and `common` (per field the value its figures mostly have) to start a preset from. |
+| POST | `/api/line-presets` | `{line, manufacturer, brand, category, scale, material}`; spacing tidied. 400 without a line, when no field is set or one is longer than 300 characters; 409 `{error, preset_id}` when the line has a preset. 201 with the preset. |
+| PATCH | `/api/line-presets/<id>` | Any subset; the result must still set a field; renaming onto another preset's line is 409. |
+| DELETE | `/api/line-presets/<id>` | Creator or admin (403 otherwise). The figures stay as they are. |
+| POST | `/api/line-presets/<id>/apply` | Fills the empty preset fields of every catalogue figure of the line; a field with a value keeps it. `{updated, filled: {field: count}}`. |
+
+- `fill_from_preset(connection, fields, guessed)` - fills a figure's fields in place from its line's preset: the empty ones and those in `guessed`; returns `{id, line, applied}` or None. Used by the link import (link-import.md).
+- `preset_for(connection, line)`, `line_key(text)`, `clean_preset(payload, partial)`.
+- A preset only ever fills fields, it never empties one: in the form the filled fields stay editable, the link import keeps what the page says, and applying keeps every value a figure has.
+- Presets are not part of an account's backup: like figures they are shared catalogue data.
 
 ### search.py
 

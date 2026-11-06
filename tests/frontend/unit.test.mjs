@@ -232,3 +232,16 @@ describe('accounts under the shared sign-in of the Ophir apps', () => {
     assert.match(run('content.innerHTML'), /oauth-admin-card[\s\S]*data-edit-user="7"[\s\S]*admin-create-user/);
   });
 });
+
+describe('line presets', () => {
+  test('a line finds its preset, spacing and case aside', () => {
+    set('state.linePresets', { presets: [{ id: 1, line: 'POP UP PARADE', manufacturer: 'Good Smile Company', brand: '', category: '', scale: 'Non-Scale', material: '' }], lines: [] });
+    assert.equal(run(`presetForLine('  pop up   parade ')?.id`), 1);
+    assert.equal(run(`presetForLine('figma')`), null);
+    assert.equal(run(`presetForLine('')`), null);
+    assert.equal(run(`presetSummary(presetForLine('POP UP PARADE'))`), 'Good Smile Company · Non-Scale');
+    assert.match(run(`presetBadge('line',{name:'Pop Up Parade'})`), /Vorlage/);
+    assert.equal(run(`presetBadge('series',{name:'POP UP PARADE'})`), '', 'only line groups have presets');
+    set('state.linePresets', null);
+  });
+});

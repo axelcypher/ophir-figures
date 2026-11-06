@@ -23,6 +23,7 @@ from flask import jsonify, request
 
 from .fetch import FetchError, fetch
 from .figures import find_duplicate, normalize_date, split_list
+from .line_presets import fill_from_preset
 from .web import app, db, login_required
 
 MAX_PAGE_BYTES = 4 * 1024 * 1024
@@ -316,14 +317,16 @@ def detect_line(text):
 
 def extract(snapshot):
     """Figure fields (as the form takes them) from a snapshot, plus what the page offers it for and
-    notes on what could not be read. Returns {"fields", "offer", "warnings", "unmapped"}."""
+    notes on what could not be read. Returns {"fields", "offer", "warnings", "unmapped", "guessed"};
+    guessed names the fields that were only inferred (the manufacturer from the brand, the category
+    from the line or the scale), which a line preset may overrule."""
     meta = snapshot.get("meta") if isinstance(snapshot.get("meta"), dict) else {}
     page_fields = snapshot.get("fields") if isinstance(snapshot.get("fields"), dict) else {}
     page_fields = {str(key): str(value) for key, value in list(page_fields.items())[:MAX_SNAPSHOT_FIELDS]}
     product = first_product(snapshot.get("jsonld") or [])
     url = str(snapshot.get("url") or "")
     site_name = meta.get("og:site_name", "")
-    fields, warnings = {}, []
+    fields, warnings, guessed = {}, [], []
 
     name = ld_text(product.get("name")) or meta.get("og:title") or snapshot.get("heading") or snapshot.get("title") or ""
     fields["name"] = clean_title(name, site_name)[:300]
@@ -341,6 +344,7 @@ def extract(snapshot):
     if not fields["manufacturer"] and fields["brand"]:
         # Shops name the maker as the product's brand more often than not.
         fields["manufacturer"] = fields["brand"]
+        guessed.append("manufacturer")
     series = labelled(page_fields, "series")
     fields["series"] = ", ".join(strip_roles(series)) if series else ""
     characters = labelled(page_fields, "characters")
@@ -381,7 +385,9 @@ def extract(snapshot):
 
     line, category = detect_line(f"{fields['name']} {labelled(page_fields, 'category')}")
     fields["line"] = line
-    if not category:
+    if category:
+        guessed.append("category")   # the usual category of a known line (LINES)
+    else:
         page_category = labelled(page_fields, "category").lower()
         if "prize" in page_category or "プライズ" in page_category:
             category = "Prize-Figur"
@@ -395,8 +401,10 @@ def extract(snapshot):
             category = "Actionfigur"
         elif fields["scale"].startswith("1/"):
             category = "Scale-Figur"
+            guessed.append("category")
         elif fields["scale"] == "Non-Scale":
             category = "Non-Scale-Figur"
+            guessed.append("category")
     fields["category"] = category
 
     price_text = labelled(page_fields, "price")
@@ -421,7 +429,7 @@ def extract(snapshot):
     if not any(fields.get(key) for key in ("manufacturer", "series", "release_date", "jan")):
         warnings.append("Hersteller, Franchise und Erscheinungsdatum standen nicht maschinenlesbar auf der Seite – bitte ergänzen.")
     return {"fields": {key: value for key, value in fields.items() if value not in ("", None)}, "offer": offer, "warnings": warnings,
-            "unmapped": dict(list(unmapped.items())[:30])}
+            "unmapped": dict(list(unmapped.items())[:30]), "guessed": guessed}
 
 
 def sanitize_snapshot(raw):
@@ -463,6 +471,8 @@ def link_import():
             html = body.decode("utf-8", errors="replace")
         snapshot = snapshot_from_html(html, final_url)
     result = extract(snapshot)
+    # The line's preset fills what the page did not say, and what was only guessed.
+    result["preset"] = fill_from_preset(db(), result["fields"], result.pop("guessed"))
     duplicate = find_duplicate(db(), result["fields"]) if result["fields"].get("name") else None
     result["duplicate"] = {"id": duplicate[0], "name": duplicate[1], "reason": duplicate[2]} if duplicate else None
     return jsonify(result)

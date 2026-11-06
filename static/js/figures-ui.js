@@ -205,14 +205,16 @@ function openGroup(view,filters,name,render){
   window.scrollTo({top:0});
 }
 
-// The head over an open group's figures: the way back to the groups, the group and its numbers.
-function groupHead(view,{count,owned=null,actions=''}){
+// The head over an open group's figures: the way back to the groups, the group and its numbers;
+// detail is one more line (an open line's preset), actions buttons beside it.
+function groupHead(view,{count,owned=null,detail='',actions=''}){
   const {by,open}=state.grouping[view];
   const back=`Zurück zu allen ${groupingLabel(by,true)}`;
   return `<div class="fig-group-head">
     <button type="button" class="icon-button fig-group-back" data-group-back title="${back}" aria-label="${back}">←</button>
     <div class="fig-group-title"><span class="eyebrow">${escapeHtml(groupingLabel(by).toUpperCase())}</span><h2>${escapeHtml(groupName(by,open.name))}</h2>
-      <small>${[plural(count,'Figur','Figuren'),owned!=null?`${owned} in der Sammlung`:''].filter(Boolean).join(' · ')}</small></div>
+      <small>${[plural(count,'Figur','Figuren'),owned!=null?`${owned} in der Sammlung`:''].filter(Boolean).join(' · ')}</small>
+      ${detail?`<small class="fig-group-detail">${escapeHtml(detail)}</small>`:''}</div>
     ${actions?`<div class="fig-group-actions">${actions}</div>`:''}
   </div>`;
 }
@@ -220,7 +222,7 @@ function groupHead(view,{count,owned=null,actions=''}){
 // One group: up to four of its figures as a mosaic, its name and numbers. stats(group) gives the
 // lines under the name and, optionally, a share (0 to 1) for the bar.
 function groupTile(by,group,stats){
-  const {lines,share=null}=stats(group);
+  const {lines,share=null}=stats(group,by);
   const name=groupName(by,group.name);
   const samples=group.samples.length?group.samples:[null];
   return `<article class="fig-group-tile${group.name?'':' fig-group-none'}" data-group="${escapeHtml(group.name)}" tabindex="0" role="button" aria-label="${escapeHtml(name)} öffnen">
@@ -565,18 +567,21 @@ async function uploadFigureImage(figureId,file){
 
 // ---- A figure: create, correct, fill in from a link ---------------------------------------------
 
-const FIGURE_FIELDS=[
-  ['name','Name *','wide'],['original_name','Originalname (japanisch)','wide'],['characters','Charaktere','',"character"],['series','Franchise','','series'],
-  ['manufacturer','Hersteller','','manufacturer'],['brand','Marke','','brand'],['category','Kategorie','','category'],['line','Linie','','line'],['scale','Maßstab','','scale'],
-  ['edition','Edition','','edition'],['release_date','Erscheinung','',null,'z. B. 2026-03'],['height_mm','Höhe (mm)','',null,'z. B. 240'],
-  ['jan','JAN / EAN'],['sculptor','Sculptor','','sculptor'],['material','Material','','material'],['source_url','Link zur Quelle','wide',null,'https://…'],
+// The form's fields in sections: [key, label, wide, suggestion list, placeholder]. The line comes
+// first in its section, so its preset fills the fields that follow it.
+const FIGURE_SECTIONS=[
+  ['Figur',[['name','Name *','wide'],['original_name','Originalname (japanisch)','wide'],['characters','Charaktere','','character'],['series','Franchise','','series']]],
+  ['Linie & Hersteller',[['line','Linie','','line'],['brand','Marke','','brand'],['manufacturer','Hersteller','','manufacturer'],['category','Kategorie','','category'],['scale','Maßstab','','scale'],['material','Material','','material']]],
+  ['Details',[['edition','Edition','','edition'],['release_date','Erscheinung','',null,'z. B. 2026-03'],['height_mm','Höhe (mm)','',null,'z. B. 240'],['jan','JAN / EAN'],['sculptor','Sculptor','','sculptor']]],
 ];
 
 async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
-  const suggestions=await loadSuggestions().catch(()=>({}));
+  const [suggestions]=await Promise.all([loadSuggestions().catch(()=>({})),loadLinePresets().catch(()=>null)]);
   const editing=Boolean(figureId);
   const value=key=>escapeHtml(prefill[key]??'');
   const currencies=suggestions.currencies||['JPY','EUR','USD'];
+  const input=([key,label,wide,list,placeholder])=>`<label class="dl-field${wide?' dl-field-wide':''}"><span>${label}</span><input class="dl-control" data-field="${key}" ${list?`list="suggest-${list}"`:''} ${placeholder?`placeholder="${placeholder}"`:''} value="${value(key)}" autocomplete="off"></label>`;
+  const section=(title,body,extra='')=>`<section class="fig-form-section"><h3>${title}</h3>${extra}<div class="dl-grid fig-form-grid">${body}</div></section>`;
   const modal=openDialog({id:'figure-form',eyebrow:'KATALOG',title:editing?'Figur bearbeiten':'Figur anlegen',wide:true,stack:editing,
     intro:editing?'Der Katalog ist für alle Konten gemeinsam – Korrekturen sehen alle.':'Füge einen Link ein, um die Daten zu übernehmen, oder trage sie von Hand ein.',body:`
     ${editing?'':`<div class="fig-import">
@@ -585,16 +590,17 @@ async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
       <small class="muted">Viele Seiten (z. B. MyFigureCollection, AmiAmi) blocken automatische Abrufe. Dann hilft das Lesezeichen <a href="${bookmarkletHref()}" class="fig-bookmarklet" title="In die Lesezeichenleiste ziehen">„Zu Ophir Figures“</a>: in die Lesezeichenleiste ziehen und auf der Produktseite anklicken.</small>
     </div>`}
     <div id="import-result">${importResult?importResultHtml(importResult):''}</div>
-    <div class="dl-grid fig-form-grid">
-      ${FIGURE_FIELDS.map(([key,label,wide,list,placeholder])=>`<label class="dl-field${wide?' dl-field-wide':''}"><span>${label}</span><input class="dl-control" data-field="${key}" ${list?`list="suggest-${list}"`:''} ${placeholder?`placeholder="${placeholder}"`:''} value="${value(key)}"></label>`).join('')}
-      <label class="dl-field"><span>Originalpreis</span><span class="fig-price-input"><input class="dl-control" data-field="msrp" inputmode="decimal" value="${amountValue(prefill.msrp)}"><select class="dl-control" data-field="msrp_currency">${currencies.map(code=>`<option ${(prefill.msrp_currency||'JPY')===code?'selected':''}>${code}</option>`).join('')}</select></span></label>
+    ${FIGURE_SECTIONS.map(([title,fields])=>section(title,fields.map(input).join(''),title==='Linie & Hersteller'?'<p class="fig-preset-hint" id="preset-hint" aria-live="polite"></p>':'')).join('')}
+    ${section('Preis & Bild',`
+      <label class="dl-field"><span>Originalpreis</span><span class="fig-price-input"><input class="dl-control" data-field="msrp" inputmode="decimal" value="${amountValue(prefill.msrp)}"><select class="dl-control" data-field="msrp_currency" aria-label="Währung">${currencies.map(code=>`<option ${(prefill.msrp_currency||'JPY')===code?'selected':''}>${code}</option>`).join('')}</select></span></label>
       ${editing?'':`<label class="dl-field"><span>Marktwert (€)</span><input class="dl-control" data-field="market_value" inputmode="decimal" placeholder="optional" value="${amountValue(prefill.market_value)}"></label>`}
       <label class="dl-field dl-field-wide"><span>Bild-Link</span><input class="dl-control" data-field="image_url" placeholder="https://…/bild.jpg" value="${value('image_url')}"></label>
-      ${editing?'':`<label class="dl-field dl-field-wide"><span>… oder Bild hochladen</span><input class="dl-control" type="file" id="figure-image-file" accept="${PICTURE_TYPES}"></label>`}
+      ${editing?'':`<label class="dl-field dl-field-wide"><span>… oder Bild hochladen</span><input class="dl-control" type="file" id="figure-image-file" accept="${PICTURE_TYPES}"></label>`}`)}
+    ${section('Quelle & Beschreibung',`
+      ${input(['source_url','Link zur Quelle','wide',null,'https://…'])}
       <label class="dl-field dl-field-wide"><span>Beschreibung</span><textarea class="dl-control" data-field="description" rows="3">${value('description')}</textarea></label>
       ${editing?'':`<label class="dl-field dl-field-wide"><span>Danach</span><select class="dl-control" id="figure-after">
-        <option value="open">Nur in den Katalog</option><option value="copy">Zur Sammlung hinzufügen</option><option value="preorder">Vorbestellen</option><option value="wish">Auf die Wunschliste</option></select></label>`}
-    </div>
+        <option value="open">Nur in den Katalog</option><option value="copy">Zur Sammlung hinzufügen</option><option value="preorder">Vorbestellen</option><option value="wish">Auf die Wunschliste</option></select></label>`}`)}
     ${['character','series','manufacturer','brand','category','line','scale','edition','sculptor','material'].map(key=>datalist(`suggest-${key}`,suggestions[key]||[])).join('')}
     <div class="dl-modal-actions"><button type="button" class="secondary-button" data-dialog-close>Abbrechen</button><span class="spacer"></span><button type="button" class="primary-button" id="figure-save">${editing?'Speichern':'Figur anlegen'}</button></div>`});
   $$('[data-dialog-close]',modal).forEach(button=>button.onclick=closeDialog);
@@ -602,6 +608,8 @@ async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
   const fill=fields=>{
     for(const [key,fieldValue] of Object.entries(fields)){const input=$(`[data-field="${key}"]`,modal);if(input&&fieldValue!=null)input.value=fieldValue}
   };
+  const presets=wireLinePreset(modal,{applyNow:!editing&&Boolean(prefill.line)});
+  if(importResult?.preset)presets.filledBy(importResult.preset);
   const runImport=async()=>{
     const url=$('#import-url',modal).value.trim();
     if(!url){toast('Bitte einen Link einfügen.');return}
@@ -609,6 +617,8 @@ async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
     try{
       const result=await post('/api/figures/link-import',{url});
       fill(result.fields);offer=result.offer;fromImport=true;
+      if(result.preset)presets.filledBy(result.preset);
+      presets.apply();
       $('#import-result',modal).innerHTML=importResultHtml(result);wireImportResult(modal);
     }catch(error){
       $('#import-result',modal).innerHTML=`<div class="fig-import-note warning"><b>Nicht übernommen</b><span>${escapeHtml(error.message)}</span></div>`;
@@ -653,7 +663,8 @@ function importResultHtml(result){
   const parts=[];
   if(result.duplicate)parts.push(`<div class="fig-import-note warning"><b>Schon im Katalog</b><span>„${escapeHtml(result.duplicate.name)}“ (${escapeHtml(result.duplicate.reason)}).</span><span class="fig-import-actions"><button type="button" class="secondary-button" data-open-duplicate="${result.duplicate.id}">Vorhandene öffnen</button></span></div>`);
   const count=Object.keys(result.fields||{}).length;
-  parts.push(`<div class="fig-import-note ${count>3?'ok':'warning'}"><b>${count} Felder übernommen</b>${(result.warnings||[]).map(text=>`<span>${escapeHtml(text)}</span>`).join('')}${result.offer?`<span>Preis auf der Seite: ${escapeHtml(currencyMoney(result.offer.price,result.offer.currency||'EUR'))}</span>`:''}</div>`);
+  const fromPreset=result.preset?.applied?.length?`<span>Aus der Vorlage „${escapeHtml(result.preset.line)}“: ${result.preset.applied.map(key=>PRESET_LABELS[key]||key).join(', ')}</span>`:'';
+  parts.push(`<div class="fig-import-note ${count>3?'ok':'warning'}"><b>${count} Felder übernommen</b>${fromPreset}${(result.warnings||[]).map(text=>`<span>${escapeHtml(text)}</span>`).join('')}${result.offer?`<span>Preis auf der Seite: ${escapeHtml(currencyMoney(result.offer.price,result.offer.currency||'EUR'))}</span>`:''}</div>`);
   const unmapped=Object.entries(result.unmapped||{});
   if(unmapped.length)parts.push(`<details class="fig-import-unmapped"><summary>Weitere Angaben der Seite (${unmapped.length})</summary><dl class="fig-facts">${unmapped.map(([key,value])=>factRow(escapeHtml(key),escapeHtml(value))).join('')}</dl></details>`);
   return parts.join('');
@@ -661,6 +672,154 @@ function importResultHtml(result){
 
 function wireImportResult(modal){
   $$('[data-open-duplicate]',modal).forEach(button=>button.onclick=()=>{closeDialog();openFigure(Number(button.dataset.openDuplicate))});
+}
+
+// ---- Line presets -------------------------------------------------------------------------------
+
+// What a preset fixes (line_presets.py PRESET_FIELDS), in the form's order.
+const PRESET_FIELDS=[['brand','Marke'],['manufacturer','Hersteller'],['category','Kategorie'],['scale','Maßstab'],['material','Material']];
+const PRESET_LABELS=Object.fromEntries(PRESET_FIELDS);
+// As line_presets.line_key: spacing and case aside.
+const lineKey=text=>String(text??'').trim().split(/\s+/).join(' ').toLowerCase();
+const presetSummary=preset=>PRESET_FIELDS.map(([key])=>preset[key]).filter(Boolean).join(' · ');
+
+async function loadLinePresets(force=false){
+  if(!state.linePresets||force)state.linePresets=await api('/api/line-presets');
+  return state.linePresets;
+}
+function presetForLine(line){
+  const key=lineKey(line);
+  return key&&state.linePresets?state.linePresets.presets.find(preset=>lineKey(preset.line)===key)||null:null;
+}
+// A line group's tile says when its line has a preset.
+const presetBadge=(by,group)=>by==='line'&&presetForLine(group.name)?'<span class="fig-preset-badge">Vorlage</span>':'';
+
+// In a figure form: choosing a line with a preset fills the preset's fields that are empty or still
+// hold what a preset put there; a value someone typed stays, and the hint offers the preset's.
+// fill=false (an existing figure, just opened) only says what the preset would change.
+function wireLinePreset(root,{applyNow=false}={}){
+  const line=$('[data-field="line"]',root),hint=$('#preset-hint',root);
+  const field=key=>$(`[data-field="${key}"]`,root);
+  const filled={};
+  const apply=(fill=true)=>{
+    const preset=presetForLine(line.value),name=line.value.trim();
+    if(!preset){
+      hint.innerHTML=name?`<span>Keine Vorlage für „${escapeHtml(name)}“.</span> <button type="button" class="link-button" data-preset-new>Als Vorlage speichern</button>`:'';
+      wire(null);return;
+    }
+    const taken=[],differ=[];
+    for(const [key,label] of PRESET_FIELDS){
+      const input=field(key),current=input.value.trim();
+      if(!preset[key]||current===preset[key])continue;
+      if(fill&&(!current||filled[key]===current)){input.value=preset[key];filled[key]=preset[key];taken.push(label)}
+      else differ.push(label);
+    }
+    hint.innerHTML=`<span><b>Vorlage „${escapeHtml(preset.line)}“</b>${taken.length?` – übernommen: ${taken.join(', ')}`:differ.length?'':' – alles wie in der Vorlage'}</span>
+      ${differ.length?`<span>${fill?'Anders als in der Vorlage':'Laut Vorlage anders'}: ${differ.join(', ')} <button type="button" class="link-button" data-preset-take>Vorlage übernehmen</button></span>`:''}
+      <button type="button" class="link-button" data-preset-edit>Vorlage bearbeiten</button>`;
+    wire(preset);
+  };
+  const current=()=>Object.fromEntries(['line',...PRESET_FIELDS.map(([key])=>key)].map(key=>[key,field(key).value.trim()]));
+  const wire=preset=>{
+    $('[data-preset-new]',hint)?.addEventListener('click',()=>openPresetForm(null,current(),{onSaved:()=>apply()}));
+    $('[data-preset-edit]',hint)?.addEventListener('click',()=>openPresetForm(preset,{},{onSaved:()=>apply()}));
+    $('[data-preset-take]',hint)?.addEventListener('click',()=>{
+      for(const [key] of PRESET_FIELDS)if(preset[key]){field(key).value=preset[key];filled[key]=preset[key]}
+      apply();
+    });
+  };
+  let timer;
+  line.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(apply,250)});
+  line.addEventListener('change',()=>{clearTimeout(timer);apply()});
+  // A filled-in value someone types over is theirs from then on.
+  for(const [key] of PRESET_FIELDS)field(key).addEventListener('input',()=>{if(filled[key]!==field(key).value.trim())delete filled[key]});
+  apply(applyNow);
+  return {apply,filledBy:preset=>{for(const key of preset.applied||[])filled[key]=field(key)?.value.trim()}};
+}
+
+// One preset: create (preset null, prefill from a form or a catalogue line) or correct it.
+async function openPresetForm(preset=null,prefill={},{onSaved=null}={}){
+  const [suggestions]=await Promise.all([loadSuggestions().catch(()=>({})),loadLinePresets().catch(()=>null)]);
+  const item={...prefill,...(preset||{})};
+  const modal=openDialog({id:'preset-form',eyebrow:'LINIEN-VORLAGE',title:preset?`Vorlage „${escapeHtml(preset.line)}“`:'Neue Linien-Vorlage',stack:true,
+    intro:'Was du hier einträgst, füllt sich bei jeder Figur dieser Linie von selbst aus – im Formular und beim Import aus einem Link. Bei der einzelnen Figur bleibt es änderbar.',body:`
+    <div class="dl-grid">
+      <label class="dl-field dl-field-wide"><span>Linie *</span><input class="dl-control" data-field="line" list="preset-suggest-line" placeholder="z. B. Nendoroid, figma, POP UP PARADE" value="${escapeHtml(item.line||'')}" autocomplete="off"></label>
+      ${PRESET_FIELDS.map(([key,label])=>`<label class="dl-field"><span>${label}</span><input class="dl-control" data-field="${key}" list="preset-suggest-${key}" value="${escapeHtml(item[key]||'')}" autocomplete="off"></label>`).join('')}
+    </div>
+    <div id="preset-note">${preset?.figures?`<div class="fig-import-note ${preset.incomplete?'warning':'ok'}"><b>${plural(preset.figures,'Figur','Figuren')} dieser Linie im Katalog</b><span>${preset.incomplete?`Bei ${plural(preset.incomplete,'Figur','Figuren')} sind Felder leer, die die Vorlage füllen kann.`:'Alle haben die Angaben der Vorlage schon (oder eigene).'}</span>${preset.incomplete?'<span class="fig-import-actions"><button type="button" class="secondary-button" id="preset-apply">Speichern und leere Felder ergänzen</button></span>':''}</div>`:''}</div>
+    ${['line',...PRESET_FIELDS.map(([key])=>key)].map(key=>datalist(`preset-suggest-${key}`,suggestions[key]||[])).join('')}
+    <div class="dl-modal-actions">${preset?.can_delete?'<button type="button" class="secondary-button danger" id="preset-delete">Löschen</button>':'<button type="button" class="secondary-button" data-dialog-close>Abbrechen</button>'}<span class="spacer"></span><button type="button" class="primary-button" id="preset-save">${preset?'Speichern':'Vorlage anlegen'}</button></div>`});
+  $$('[data-dialog-close]',modal).forEach(button=>button.onclick=closeDialog);
+  const save=async()=>{
+    try{
+      const saved=preset?await patch(`/api/line-presets/${preset.id}`,fieldValues(modal)):await post('/api/line-presets',fieldValues(modal));
+      await loadLinePresets(true);
+      return saved;
+    }catch(error){
+      if(error.status===409&&error.data?.preset_id){
+        $('#preset-note',modal).innerHTML=`<div class="fig-import-note warning"><b>Schon vorhanden</b><span>${escapeHtml(error.message)}</span><span class="fig-import-actions"><button type="button" class="secondary-button" id="preset-open-existing">Vorhandene bearbeiten</button></span></div>`;
+        $('#preset-open-existing',modal).onclick=()=>{closeDialog();openPresetForm(state.linePresets?.presets.find(other=>other.id===error.data.preset_id)||null,{},{onSaved})};
+      }else toast(error.message);
+      return null;
+    }
+  };
+  $('#preset-save',modal).onclick=async()=>{
+    const saved=await save();if(!saved)return;
+    closeDialog();toast(preset?'Vorlage gespeichert':'Vorlage angelegt');onSaved?.(saved);
+  };
+  $('#preset-apply',modal)?.addEventListener('click',async()=>{
+    const saved=await save();if(!saved)return;
+    try{
+      const result=await post(`/api/line-presets/${saved.id}/apply`,{});
+      await loadLinePresets(true);
+      closeDialog();toast(result.updated?`${plural(result.updated,'Figur','Figuren')} ergänzt`:'Nichts zu ergänzen');
+      state.suggestions=null;onSaved?.(saved);refreshCurrentView();
+    }catch(error){toast(error.message)}
+  });
+  $('#preset-delete',modal)?.addEventListener('click',async()=>{
+    if(!confirm(`Vorlage „${preset.line}“ löschen? Die Figuren der Linie bleiben, wie sie sind.`))return;
+    try{await del(`/api/line-presets/${preset.id}`);await loadLinePresets(true);closeDialog();toast('Vorlage gelöscht');onSaved?.(null)}catch(error){toast(error.message)}
+  });
+}
+
+// Where presets are managed: every preset, and the catalogue's lines that have none yet, each
+// with what its figures mostly say.
+async function openLinePresets(){
+  try{await loadLinePresets(true)}catch(error){toast(error.message);return}
+  const modal=openDialog({id:'line-presets',eyebrow:'KATALOG',title:'Linien-Vorlagen',wide:true,
+    intro:'Eine Vorlage hält fest, was eine Linie vorgibt: Marke, Hersteller, Kategorie, Maßstab, Material. Wählst du die Linie bei einer Figur – oder bringt der Link-Import sie mit –, füllen sich diese Felder von selbst.',
+    body:'<div id="line-presets-body"></div>'});
+  const body=$('#line-presets-body',modal);
+  const refresh=async()=>{await loadLinePresets(true);if(document.body.contains(body))paint()};
+  const paint=()=>{
+    const {presets,lines}=state.linePresets;
+    body.innerHTML=`<div class="fig-section-head"><h3>Vorlagen <small>${presets.length}</small></h3><button type="button" class="primary-button" data-preset-create>＋ Vorlage</button></div>
+      ${presets.length?`<div class="fig-rows">${presets.map(preset=>`<div class="fig-row fig-preset-row">
+          <span class="fig-preset-main"><b>${escapeHtml(preset.line)}</b><small>${escapeHtml(presetSummary(preset))}</small>
+            <small>${preset.figures?plural(preset.figures,'Figur','Figuren'):'Noch keine Figur'}${preset.incomplete?` · <span class="fig-incomplete">${preset.incomplete} mit leeren Feldern</span>`:''}</small></span>
+          <span class="fig-row-actions">${preset.incomplete?`<button type="button" class="secondary-button" data-preset-apply="${preset.id}" title="Leere Felder der Figuren dieser Linie aus der Vorlage füllen">Ergänzen</button>`:''}<button type="button" class="icon-button" data-preset-edit="${preset.id}" title="Bearbeiten" aria-label="Vorlage ${escapeHtml(preset.line)} bearbeiten">✎</button>${preset.can_delete?`<button type="button" class="icon-button" data-preset-delete="${preset.id}" title="Löschen" aria-label="Vorlage ${escapeHtml(preset.line)} löschen">✕</button>`:''}</span>
+        </div>`).join('')}</div>`
+        :'<div class="fig-empty-soft">Noch keine Vorlage. Leg eine an – oder starte mit einer Linie aus dem Katalog.</div>'}
+      ${lines.length?`<div class="fig-section-head"><h3>Linien im Katalog ohne Vorlage <small>${lines.length}</small></h3></div>
+        <div class="fig-rows">${lines.map((line,index)=>`<div class="fig-row fig-preset-row">
+          <span class="fig-preset-main"><b>${escapeHtml(line.line)}</b><small>${plural(line.figures,'Figur','Figuren')}${presetSummary(line.common)?` · meist ${escapeHtml(presetSummary(line.common))}`:''}</small></span>
+          <span class="fig-row-actions"><button type="button" class="secondary-button" data-line-create="${index}">Vorlage anlegen</button></span>
+        </div>`).join('')}</div>`:''}`;
+    $('[data-preset-create]',body).onclick=()=>openPresetForm(null,{},{onSaved:refresh});
+    $$('[data-line-create]',body).forEach(button=>button.onclick=()=>{const line=lines[Number(button.dataset.lineCreate)];openPresetForm(null,{line:line.line,...line.common},{onSaved:refresh})});
+    $$('[data-preset-edit]',body).forEach(button=>button.onclick=()=>openPresetForm(presets.find(preset=>preset.id===Number(button.dataset.presetEdit)),{},{onSaved:refresh}));
+    $$('[data-preset-apply]',body).forEach(button=>button.onclick=async()=>{
+      try{const result=await post(`/api/line-presets/${button.dataset.presetApply}/apply`,{});toast(`${plural(result.updated,'Figur','Figuren')} ergänzt`);state.suggestions=null;refreshCurrentView();refresh()}
+      catch(error){toast(error.message)}
+    });
+    $$('[data-preset-delete]',body).forEach(button=>button.onclick=async()=>{
+      const preset=presets.find(item=>item.id===Number(button.dataset.presetDelete));
+      if(!confirm(`Vorlage „${preset.line}“ löschen? Die Figuren der Linie bleiben, wie sie sind.`))return;
+      try{await del(`/api/line-presets/${preset.id}`);toast('Vorlage gelöscht');refresh()}catch(error){toast(error.message)}
+    });
+  };
+  paint();
 }
 
 // ---- The bookmarklet ----------------------------------------------------------------------------

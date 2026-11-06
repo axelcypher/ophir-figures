@@ -19,29 +19,55 @@ function resetFilters(filters,defaults,grouping){
   if(grouping.open)filters[grouping.open.by]=grouping.open.name||NONE_VALUE;
 }
 
+// A grid's answer, with the line presets beside it while it is grouped by line (for the badges and
+// the open line's preset).
+function loadGrid(url,grouping){
+  const lines=grouping.by==='line'||grouping.open?.by==='line';
+  return Promise.all([api(url),lines?loadLinePresets().catch(()=>null):null]).then(([data])=>data);
+}
+
+// In an open line group: its preset, to correct or to start from what the line's figures say.
+function linePresetAction(grouping){
+  if(grouping.open?.by!=='line'||!grouping.open.name)return '';
+  return `<button type="button" class="secondary-button" data-group-preset>${presetForLine(grouping.open.name)?'Vorlage bearbeiten':'Vorlage anlegen'}</button>`;
+}
+function linePresetDetail(grouping){
+  const preset=grouping.open?.by==='line'?presetForLine(grouping.open.name):null;
+  return preset&&presetSummary(preset)?`Vorlage: ${presetSummary(preset)}`:'';
+}
+function wireLinePresetAction(grouping,render){
+  $('[data-group-preset]',content)?.addEventListener('click',()=>{
+    const name=grouping.open.name,preset=presetForLine(name);
+    const common=state.linePresets?.lines.find(line=>lineKey(line.line)===lineKey(name))?.common||{};
+    openPresetForm(preset,preset?{}:{line:name,...common},{onSaved:()=>render()});
+  });
+}
+
 // ---- Catalogue ----------------------------------------------------------------------------------
 
-const catalogGroupStats=group=>({lines:[plural(group.count,'Figur','Figuren'),`${group.owned} in der Sammlung`],share:group.owned/group.count});
+const catalogGroupStats=(group,by)=>({lines:[`${plural(group.count,'Figur','Figuren')} ${presetBadge(by,group)}`,`${group.owned} in der Sammlung`],share:group.owned/group.count});
 
 async function renderCatalog(){
   const stale=renderGuard(),filters=state.catalogFilters,grouping=state.grouping.catalog;
   syncOpenGroup(filters,grouping);
   if(!$('#catalog-grid'))content.innerHTML=loader('Katalog wird geladen …');
   let data;
-  try{data=await api(`/api/figures?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Katalog nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await loadGrid(`/api/figures?${gridQuery(filters,grouping)}`,grouping)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Katalog nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
   const figures=data.figures||[];
   content.innerHTML=`${pageHead({eyebrow:'GEMEINSAMER KATALOG',title:'Katalog',text:`${plural(data.total,'Figur','Figuren')} – von allen Konten gepflegt. Fehlt eine, leg sie an.`,
-      actions:'<button type="button" class="primary-button" id="catalog-create">＋ Figur anlegen</button>'})}
+      actions:'<button type="button" class="secondary-button" id="catalog-presets">Linien-Vorlagen</button><button type="button" class="primary-button" id="catalog-create">＋ Figur anlegen</button>'})}
     ${groupSwitch('catalog')}
-    ${grouping.open?groupHead('catalog',{count:figures.length,owned:figures.filter(figure=>figure.owned).length}):''}
+    ${grouping.open?groupHead('catalog',{count:figures.length,owned:figures.filter(figure=>figure.owned).length,detail:linePresetDetail(grouping),actions:linePresetAction(grouping)}):''}
     ${filterBar({key:'catalog',filters,facets:data.facets,modes:CATALOG_MODES,sorts:['release','name','series','brand','manufacturer','line','added','value'],extraFacets:['scale'],grouping})}
     <p class="fig-count muted">${gridCount(data,grouping,data.shown,data.total)}</p>
     <div id="catalog-grid"></div>`;
   mountFilterPanel('catalog',['.fig-filter-row']);
   wireFilterBar(content,filters,renderCatalog,()=>resetFilters(filters,defaultCatalogFilters(),grouping));
   wireGroups(content,'catalog',filters,renderCatalog);
+  wireLinePresetAction(grouping,renderCatalog);
   $('#catalog-create').onclick=()=>openFigureForm({name:filters.q||''});
+  $('#catalog-presets').onclick=()=>openLinePresets();
   const empty=`<div class="empty-state"><b>${data.total?'Keine Figur passt zu den Filtern':'Der Katalog ist noch leer'}</b><span>${data.total?'Ändere die Filter oder ':''}Lege die erste Figur an – von Hand oder aus einem Link.</span><button type="button" class="primary-button" data-empty-create>＋ Figur anlegen</button></div>`;
   if(data.groups)renderGroupGrid($('#catalog-grid'),'catalog',data.groups,{stats:catalogGroupStats,empty,onOpen:name=>openGroup('catalog',filters,name,renderCatalog)});
   else renderFigureGrid($('#catalog-grid'),figures,{empty});
@@ -50,14 +76,14 @@ async function renderCatalog(){
 
 // ---- Collection ---------------------------------------------------------------------------------
 
-const collectionGroupStats=group=>({lines:[`${plural(group.count,'Figur','Figuren')} · ${plural(group.copies,'Exemplar','Exemplare')}`,`<span class="fig-value">${money(group.value)}</span>`]});
+const collectionGroupStats=(group,by)=>({lines:[`${plural(group.count,'Figur','Figuren')} · ${plural(group.copies,'Exemplar','Exemplare')} ${presetBadge(by,group)}`,`<span class="fig-value">${money(group.value)}</span>`]});
 
 async function renderCollection(){
   const stale=renderGuard(),filters=state.collectionFilters,grouping=state.grouping.collection;
   syncOpenGroup(filters,grouping);
   if(!$('#collection-grid'))content.innerHTML=loader('Sammlung wird geladen …');
   let data;
-  try{data=await api(`/api/collection?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Sammlung nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await loadGrid(`/api/collection?${gridQuery(filters,grouping)}`,grouping)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Sammlung nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
   const stats=data.stats,figures=data.figures||[];
   const conditionSelect=`<label class="fig-filter"><span>Zustand</span><select class="select-control" data-filter="condition"><option value="">Alle</option>${Object.entries(data.conditions).map(([key,label])=>`<option value="${key}" ${filters.condition===key?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select></label>`;
@@ -68,13 +94,14 @@ async function renderCollection(){
       {label:'Wert',value:money(stats.value)},{label:'Ausgegeben',value:money(stats.spent)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
     ${stats.figures?groupSwitch('collection'):''}
-    ${grouping.open?groupHead('collection',{count:figures.length}):''}
+    ${grouping.open?groupHead('collection',{count:figures.length,detail:linePresetDetail(grouping),actions:linePresetAction(grouping)}):''}
     ${filterBar({key:'collection',filters,facets:data.facets,sorts:['added','purchased','release','name','series','brand','manufacturer','line','collection_value','spent'],extraFacets:['scale','location'],extra:conditionSelect,grouping})}
     <p class="muted fig-count">${gridCount(data,grouping,data.shown.figures,stats.figures)}${stats.unpriced?` · ${plural(stats.unpriced,'Exemplar hat','Exemplare haben')} weder Kaufpreis noch Marktwert und zählen im Wert nicht mit.`:''}</p>
     <div id="collection-grid"></div>`;
   mountFilterPanel('collection',['.fig-filter-row']);
   wireFilterBar(content,filters,renderCollection,()=>resetFilters(filters,defaultCollectionFilters(),grouping));
   wireGroups(content,'collection',filters,renderCollection);
+  wireLinePresetAction(grouping,renderCollection);
   $('#collection-add').onclick=()=>{state.catalogFilters.mode='missing';routeTo('catalog')};
   const empty=stats.figures?'<div class="empty-state"><b>Keine Figur passt zu den Filtern</b><span>Ändere oder setze die Filter zurück.</span></div>'
     :'<div class="empty-state"><b>Deine Sammlung ist noch leer</b><span>Such eine Figur im Katalog oder leg sie an und füge ein Exemplar hinzu.</span><button type="button" class="primary-button" data-route-catalog>Zum Katalog</button></div>';
@@ -87,7 +114,7 @@ async function renderCollection(){
 
 // ---- Wishlists ----------------------------------------------------------------------------------
 
-const watchGroupStats=group=>({lines:[plural(group.count,'Figur','Figuren'),group.target_reached?`${group.target_reached} am Zielpreis`:group.owned?`${group.owned} schon in der Sammlung`:'']});
+const watchGroupStats=(group,by)=>({lines:[`${plural(group.count,'Figur','Figuren')} ${presetBadge(by,group)}`,group.target_reached?`${group.target_reached} am Zielpreis`:group.owned?`${group.owned} schon in der Sammlung`:'']});
 
 async function renderWatchlist(listId){
   const stale=renderGuard(),filters=state.watchFilters,grouping=state.grouping.watch;
@@ -97,7 +124,7 @@ async function renderWatchlist(listId){
   syncOpenGroup(filters,grouping);
   if(!$('#watch-grid'))content.innerHTML=loader('Wunschliste wird geladen …');
   let data;
-  try{data=await api(`/api/watchlists/${state.watchlistId}/figures?${gridQuery(filters,grouping)}`)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Liste nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
+  try{data=await loadGrid(`/api/watchlists/${state.watchlistId}/figures?${gridQuery(filters,grouping)}`,grouping)}catch(error){if(!stale())content.innerHTML=`<div class="empty-state"><b>Liste nicht erreichbar</b><span>${escapeHtml(error.message)}</span></div>`;return}
   if(stale())return;
   const list=data.list,stats=data.stats,figures=data.figures||[];
   content.innerHTML=`${pageHead({eyebrow:'WUNSCHLISTEN',title:escapeHtml(list.name),text:'Figuren, die du noch suchst – mit Zielpreis wird markiert, was gerade günstig ist.',
@@ -108,13 +135,14 @@ async function renderWatchlist(listId){
       {label:'Schon in der Sammlung',value:stats.owned},{label:'Geschätzt',value:money(stats.estimate)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
     ${stats.count?groupSwitch('watch'):''}
-    ${grouping.open?groupHead('watch',{count:figures.length,owned:figures.filter(figure=>figure.owned).length}):''}
+    ${grouping.open?groupHead('watch',{count:figures.length,owned:figures.filter(figure=>figure.owned).length,detail:linePresetDetail(grouping),actions:linePresetAction(grouping)}):''}
     ${filterBar({key:'watch',filters,facets:data.facets,modes:[['all','Alle'],['missing','Noch nicht in der Sammlung']],sorts:['wished','release','name','series','brand','manufacturer','line','value'],extraFacets:['scale'],grouping})}
     ${stats.count?`<p class="muted fig-count">${gridCount(data,grouping,data.groups?data.groups.reduce((sum,group)=>sum+group.count,0):figures.length,stats.count)}</p>`:''}
     <div id="watch-grid"></div>`;
   mountFilterPanel('watch',['.fig-filter-row']);
   wireFilterBar(content,filters,()=>renderWatchlist(),()=>resetFilters(filters,defaultWatchFilters(),grouping));
   wireGroups(content,'watch',filters,()=>renderWatchlist());
+  wireLinePresetAction(grouping,()=>renderWatchlist());
   $$('[data-list]',content).forEach(button=>button.onclick=()=>renderWatchlist(Number(button.dataset.list)));
   $('#watch-new').onclick=async()=>{
     const name=prompt('Name der neuen Liste');if(!name)return;

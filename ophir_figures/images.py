@@ -31,8 +31,11 @@ FORMAT_NAMES = "JPEG, PNG, WebP, GIF oder AVIF"
 MIME_OF_EXTENSION = {extension: mime for extension, mime in FORMATS.values()}
 _misses = {}
 
-PLACEHOLDER_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><rect width="300" height="400" fill="#1b1d22"/>
-<g fill="none" stroke="#3a3f4a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+# A figure without a picture: a small silhouette in a grey that reads on the light and the dark
+# appearance, on a transparent ground (the tile's own surface shows through), in the middle of the
+# frame, so cropping it into a wider one (a group's mosaic) keeps it whole.
+PLACEHOLDER_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400">
+<g fill="none" stroke="#8c8679" stroke-opacity=".5" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" transform="translate(150 205) scale(.6) translate(-150 -205)">
 <circle cx="150" cy="118" r="38"/><path d="M96 300c4-62 22-110 54-110s50 48 54 110"/><path d="M82 330h136"/></g></svg>"""
 
 

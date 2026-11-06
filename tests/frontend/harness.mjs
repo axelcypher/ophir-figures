@@ -135,10 +135,18 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
       await page.waitFor(`document.readyState==='complete'`);
     },
     async login(base, username, password) {
-      // The app is ready once the bootstrap data is in and the dashboard has been drawn.
-      const ready = `typeof state==='object'&&state.boot&&document.querySelector('[data-dashboard-route]')`;
+      // The app is ready once every script and stylesheet of the page has arrived, the bootstrap
+      // data is in, for this account, and the dashboard has been drawn.
+      const complete = `[...document.scripts].every(script=>!script.src||[...performance.getEntriesByName(script.src)].some(entry=>entry.responseStatus===200))
+        &&[...document.querySelectorAll('link[rel=stylesheet]')].filter(link=>link.href.startsWith(location.origin)).every(link=>link.sheet?.cssRules.length)`;
+      const ready = `typeof state==='object'&&state.boot?.user.username===${JSON.stringify(username)}&&document.querySelector('[data-dashboard-route]')&&(${complete})`;
       const signIn = async () => {
         await page.goto(`${base}/login`);
+        if (!await page.evaluate(`Boolean(document.querySelector('[name=username]'))`)) {
+          // Someone is signed in already, and the sign-in page sent them on to the app.
+          await page.evaluate(`(()=>{const out=()=>fetch(${JSON.stringify(`${base}/logout`)},{method:'POST'});return out().catch(out).then(()=>1)})()`);
+          await page.goto(`${base}/login`);
+        }
         await page.evaluate(`(()=>{document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value=${JSON.stringify(password)};document.querySelector('form').submit()})()`);
       };
       // On Windows, Chrome now and then gives up on one of the page's many connections to the
@@ -159,9 +167,19 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
     /** Opens a view and waits until it has replaced what was on screen and is done loading. */
     async route(route, data) {
       // Every view draws itself by replacing the content, so a marked element disappearing is
-      // the sign that the new one is there -- also when the same view is opened again.
-      await page.evaluate(`(document.querySelector('#content').firstElementChild?.setAttribute('data-previous-view',''),routeTo(${JSON.stringify(route)}${data === undefined ? '' : `,${JSON.stringify(data)}`}),1)`);
-      await page.waitFor(`(()=>{const view=document.querySelector('#content');return !view.querySelector('[data-previous-view],.page-loader')&&view.children.length>0})()`, { message: `the ${route} view to finish loading` });
+      // the sign that the new one is there -- also when the same view is opened again. A view
+      // that did not get its data (the dropped connections described at login: "… nicht
+      // erreichbar", or a loader that stays) is opened once more.
+      for (let attempt = 1; ; attempt++) {
+        await page.evaluate(`(document.querySelector('#content').firstElementChild?.setAttribute('data-previous-view',''),routeTo(${JSON.stringify(route)}${data === undefined ? '' : `,${JSON.stringify(data)}`}),1)`);
+        try {
+          await page.waitFor(`(()=>{const view=document.querySelector('#content');return !view.querySelector('[data-previous-view],.page-loader')&&view.children.length>0&&!/nicht erreichbar/.test(view.innerText)})()`,
+            { message: `the ${route} view to finish loading`, timeout: attempt === 1 ? 10000 : 15000 });
+          return;
+        } catch (error) {
+          if (attempt === 2) throw error;
+        }
+      }
     },
     /** Whether the system asks for reduced motion ('reduce') or not ('no-preference'). */
     async motion(value) {
@@ -169,6 +187,11 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
     },
     async offline(offline) {
       await send('Network.emulateNetworkConditions', { offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    },
+    /** Another screen from now on: a phone (mobile, touch) or a wide window. */
+    async screen({ width, height, mobile = false }) {
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile });
+      await send('Emulation.setTouchEmulationEnabled', { enabled: mobile });
     },
     async close() {
       try { socket.close(); } catch {}

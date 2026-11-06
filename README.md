@@ -12,7 +12,7 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
 - Wishlists: a default list plus named lists, target price per entry, marked when the market value has fallen to it
 - Preorders: shop, order number, price, shipping, what has been paid, expected release, status (ordered, paid, shipped, arrived, cancelled), tracking number; every postponed release is logged; arrival books the copies into the collection
 - Market values per figure as a shared history with a chart; without one a copy counts with its purchase price
-- Pictures: downloaded from a link or uploaded, thumbnails made on the server
+- Pictures: downloaded from a link or uploaded as JPEG, PNG, WebP, GIF or AVIF (up to 15 MB), thumbnails made on the server
 - Public profile at `/u/<address>`: the collection (optionally the wishlist) with pictures, readable without signing in, without prices or private data
 - JSON backup and restore (also onto another instance, with undo), CSV export of collection and preorders
 - Dark and light appearance, works on phones

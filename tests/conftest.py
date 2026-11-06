@@ -150,9 +150,18 @@ def fake_fetch(monkeypatch):
 
 
 def png_bytes(color=(200, 30, 60), size=(40, 60)):
+    return picture_bytes("PNG", color, size)
+
+
+def avif_bytes(color=(30, 120, 200), size=(40, 60)):
+    """Made with Pillow here, so no binary fixture has to live in the repository."""
+    return picture_bytes("AVIF", color, size)
+
+
+def picture_bytes(image_format, color=(200, 30, 60), size=(40, 60)):
     import io
 
     from PIL import Image
     buffer = io.BytesIO()
-    Image.new("RGB", size, color).save(buffer, "PNG")
+    Image.new("RGB", size, color).save(buffer, image_format)
     return buffer.getvalue()

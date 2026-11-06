@@ -61,6 +61,7 @@ describe('app in the browser', { skip }, () => {
   test('a figure is created from a link and put into the collection', async () => {
     await page.evaluate(`(openFigureForm(),1)`);
     await page.waitFor(`document.querySelector('#import-url')`);
+    assert.match(await page.evaluate(`document.querySelector('#figure-image-file').accept`), /image\/avif/);
     await fill('#import-url', 'https://shop.test/saber');
     await click('#import-fetch');
     await page.waitFor(`document.querySelector('[data-field="name"]').value==='Saber Alter 1/7'`, { message: 'the link import to fill the form' });

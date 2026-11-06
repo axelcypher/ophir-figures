@@ -27,12 +27,12 @@ Helpers used by other modules: `normalize_date` (`2025`, `2025-03`, `14.03.2025`
 
 | Method | Path | Auth | What it does |
 | --- | --- | --- | --- |
-| GET | `/images/figures/<id>` | login | The picture (original bytes); a placeholder SVG (5 min cache) without one. |
-| GET | `/images/figures/<id>/thumb` | login | WebP, 480 px wide, made on first use. |
-| POST | `/api/figures/<id>/image` | login | Multipart `file`, or JSON `{url}` to download. 400 for anything Pillow cannot read as JPEG/PNG/WebP/GIF or above 15 MB. |
+| GET | `/images/figures/<id>` | login | The picture (original bytes, with the content type of its format, e.g. `image/avif`); a placeholder SVG (5 min cache) without one. |
+| GET | `/images/figures/<id>/thumb` | login | WebP, 480 px wide, made on first use (from any of the formats below). |
+| POST | `/api/figures/<id>/image` | login | Multipart `file`, or JSON `{url}` to download. 400 for anything Pillow cannot read as JPEG/PNG/WebP/GIF/AVIF or above 15 MB. |
 | DELETE | `/api/figures/<id>/image` | login | Clears `image_key` and `image_url`; the file stays (it may be shared). |
 
-- `store_image(bytes)` -> key `<sha256>.<ext>`; `download_image(url)`; `ensure_image(connection, figure)` fetches a pending `image_url` on first view, a failed URL not again for 600 s (per process); `serve_figure_image(id, size)` (also used by the public profile). A request with `?v=<first 12 of the key>` is cached for a year.
+- `store_image(bytes)` -> key `<sha256>.<ext>`, the bytes kept as they came; `FORMATS` maps Pillow's format (`JPEG`, `PNG`, `WEBP`, `GIF`, `AVIF`) to extension and content type. AVIF needs a Pillow built with libavif: the PyPI wheels of the pinned Pillow (Windows and the manylinux ones the image installs) bundle it. `download_image(url)` (also the picture an `image_url` on create/update or from the link import names); `ensure_image(connection, figure)` fetches a pending `image_url` on first view, a failed URL not again for 600 s (per process); `serve_figure_image(id, size)` (also used by the public profile). A request with `?v=<first 12 of the key>` is cached for a year.
 
 ### prices.py
 

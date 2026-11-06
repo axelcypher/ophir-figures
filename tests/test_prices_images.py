@@ -1,7 +1,9 @@
 """Market values with their history, and figure pictures: upload, download, thumbnails, caching."""
 import io
 
-from conftest import FRIEREN, MIKU, png_bytes, query
+import pytest
+
+from conftest import FRIEREN, MIKASA, MIKU, REM, avif_bytes, picture_bytes, png_bytes, query
 
 
 def test_market_values_are_a_shared_history(client, admin):
@@ -64,3 +66,36 @@ def test_a_picture_can_be_set_by_link_and_removed(client, fake_fetch):
 def test_a_new_picture_link_on_save_is_fetched_and_a_failure_reported(client, fake_fetch):
     response = client.patch(f"/api/figures/{MIKU}", json={"image_url": "https://cdn.example.com/kaputt.png"}).get_json()
     assert "404" in response["image_error"] and response["has_image"] is True, "the link is kept to be tried again later"
+
+
+def test_an_uploaded_avif_is_kept_as_it_is_and_gets_a_webp_thumbnail(client):
+    payload = avif_bytes(size=(960, 1280))
+    response = upload(client, MIKU, payload, "bild.avif")
+    assert response.status_code == 200
+    key = response.get_json()["image_key"]
+    from ophir_figures.config import IMAGE_DIR
+    assert key.endswith(".avif") and (IMAGE_DIR / key).read_bytes() == payload, "the original is stored, not converted"
+    full = client.get(f"/images/figures/{MIKU}?v={key[:12]}")
+    assert full.mimetype == "image/avif" and full.data == payload
+    thumb = client.get(f"/images/figures/{MIKU}/thumb")
+    from PIL import Image
+    image = Image.open(io.BytesIO(thumb.data))
+    assert thumb.mimetype == "image/webp" and image.format == "WEBP" and image.size == (480, 640)
+
+
+def test_an_avif_link_is_downloaded_by_hand_on_save_and_on_first_view(client, fake_fetch):
+    for name in ("rem", "frieren", "mikasa"):
+        fake_fetch.pages[f"https://cdn.example.com/{name}.avif"] = ("image/avif", avif_bytes())
+    assert client.post(f"/api/figures/{REM}/image", json={"url": "https://cdn.example.com/rem.avif"}).get_json()["image_key"].endswith(".avif")
+    saved = client.patch(f"/api/figures/{FRIEREN}", json={"image_url": "https://cdn.example.com/frieren.avif"}).get_json()
+    assert saved["image_error"] is None and saved["image_version"]
+    query("UPDATE figures SET image_url='https://cdn.example.com/mikasa.avif' WHERE id=?", (MIKASA,))
+    for figure_id in (REM, FRIEREN, MIKASA):
+        assert client.get(f"/images/figures/{figure_id}").mimetype == "image/avif", figure_id
+        assert client.get(f"/images/figures/{figure_id}/thumb").mimetype == "image/webp", figure_id
+
+
+@pytest.mark.parametrize("payload, name", [(b"%PDF-1.7 no picture", "bild.pdf"), (picture_bytes("BMP"), "bild.bmp")], ids=["unreadable", "bmp"])
+def test_anything_else_is_refused_with_the_formats_that_work(client, payload, name):
+    response = upload(client, MIKU, payload, name)
+    assert response.status_code == 400 and "AVIF" in response.get_json()["error"]

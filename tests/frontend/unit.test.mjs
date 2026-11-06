@@ -91,6 +91,10 @@ describe('figure views', () => {
   test('the default list', () => {
     assert.equal(run(`defaultListId()`), 3);
   });
+
+  test('the picture upload fields offer every format the server takes', () => {
+    assert.deepEqual(run(`PICTURE_TYPES`).split(','), ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+  });
 });
 
 describe('the bookmarklet', () => {

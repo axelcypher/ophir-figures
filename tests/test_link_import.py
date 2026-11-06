@@ -123,3 +123,17 @@ def test_the_imported_fields_create_a_figure_with_its_picture_and_value(client, 
     assert created["has_image"] and created["image_version"] and created["image_error"] is None
     assert created["market_value"] == 189.95 and created["prices"][0]["source"] == "import"
     assert client.get(f"/images/figures/{created['id']}/thumb").mimetype == "image/webp"
+
+
+def test_a_product_picture_in_avif_comes_with_the_figure(client, fake_fetch):
+    from conftest import avif_bytes, query
+    page = SHOP_PAGE.replace("miku-large.jpg", "miku-large.avif")
+    fake_fetch.pages["https://shop.example/miku-avif"] = ("text/html", page.encode())
+    fields = client.post("/api/figures/link-import", json={"url": "https://shop.example/miku-avif"}).get_json()["fields"]
+    assert fields["image_url"] == "https://cdn.example.com/files/miku-large.avif"
+    fake_fetch.pages[fields["image_url"]] = ("image/avif", avif_bytes())
+    created = client.post("/api/figures", json={"name": fields["name"], "image_url": fields["image_url"], "from_import": True, "force": True}).get_json()
+    assert created["image_error"] is None
+    assert query("SELECT image_key FROM figures WHERE id=?", (created["id"],))[0]["image_key"].endswith(".avif")
+    assert client.get(f"/images/figures/{created['id']}").mimetype == "image/avif"
+    assert client.get(f"/images/figures/{created['id']}/thumb").mimetype == "image/webp"

@@ -424,10 +424,13 @@ async function openWishDialog(figureId){
 
 // ---- Pictures -----------------------------------------------------------------------------------
 
+// What the server takes (images.py FORMATS); the file pickers offer these.
+const PICTURE_TYPES='image/jpeg,image/png,image/webp,image/gif,image/avif';
+
 function openImageDialog(figure){
   const modal=openDialog({id:'image-dialog',eyebrow:'BILD',title:'Bild der Figur',intro:escapeHtml(figure.name),stack:true,body:`
     <div class="dl-grid">
-      <label class="dl-field dl-field-wide"><span>Datei hochladen</span><input class="dl-control" type="file" id="image-file" accept="image/jpeg,image/png,image/webp,image/gif"></label>
+      <label class="dl-field dl-field-wide"><span>Datei hochladen</span><input class="dl-control" type="file" id="image-file" accept="${PICTURE_TYPES}"></label>
       <label class="dl-field dl-field-wide"><span>… oder Link zu einem Bild</span><input class="dl-control" id="image-url" placeholder="https://…/bild.jpg" value="${escapeHtml(figure.image_url||'')}"></label>
     </div>
     <div class="dl-modal-actions">${figure.has_image?'<button type="button" class="secondary-button danger" id="image-remove">Bild entfernen</button>':''}<span class="spacer"></span><button type="button" class="primary-button" id="image-save">Übernehmen</button></div>`});
@@ -480,7 +483,7 @@ async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
       <label class="dl-field"><span>Originalpreis</span><span class="fig-price-input"><input class="dl-control" data-field="msrp" inputmode="decimal" value="${amountValue(prefill.msrp)}"><select class="dl-control" data-field="msrp_currency">${currencies.map(code=>`<option ${(prefill.msrp_currency||'JPY')===code?'selected':''}>${code}</option>`).join('')}</select></span></label>
       ${editing?'':`<label class="dl-field"><span>Marktwert (€)</span><input class="dl-control" data-field="market_value" inputmode="decimal" placeholder="optional" value="${amountValue(prefill.market_value)}"></label>`}
       <label class="dl-field dl-field-wide"><span>Bild-Link</span><input class="dl-control" data-field="image_url" placeholder="https://…/bild.jpg" value="${value('image_url')}"></label>
-      ${editing?'':`<label class="dl-field dl-field-wide"><span>… oder Bild hochladen</span><input class="dl-control" type="file" id="figure-image-file" accept="image/jpeg,image/png,image/webp,image/gif"></label>`}
+      ${editing?'':`<label class="dl-field dl-field-wide"><span>… oder Bild hochladen</span><input class="dl-control" type="file" id="figure-image-file" accept="${PICTURE_TYPES}"></label>`}
       <label class="dl-field dl-field-wide"><span>Beschreibung</span><textarea class="dl-control" data-field="description" rows="3">${value('description')}</textarea></label>
       ${editing?'':`<label class="dl-field dl-field-wide"><span>Danach</span><select class="dl-control" id="figure-after">
         <option value="open">Nur in den Katalog</option><option value="copy">Zur Sammlung hinzufügen</option><option value="preorder">Vorbestellen</option><option value="wish">Auf die Wunschliste</option></select></label>`}

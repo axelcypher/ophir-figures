@@ -18,7 +18,7 @@
 - `figureTile(figure, {note, value, badge})`, `renderFigureGrid(container, figures, {tile, empty})` (pages of 180, the next loads on scroll), `toggleWish`, `quickAddCopy`.
 - `filterBar({...})` / `wireFilterBar(root, filters, render, reset)`, `filterQuery(filters)`.
 - `openFigure(id, tab)` - the figure dialog (`#figure-modal`) with tabs `copies`, `preorders`, `value`, `lists`, `info`; `afterChange()` reloads it, the counts and the view.
-- `openEntryDialog(figure, entry)`, `openPreorderDialog(figure, preorder, prefill)`, `openWishDialog(id)`, `openImageDialog(figure)`, `openFigureForm(prefill, {figureId, importResult})` (create/edit with link import; "Danach" opens the copy or preorder dialog or wishes).
+- `openEntryDialog(figure, entry)`, `openPreorderDialog(figure, preorder, prefill)`, `openWishDialog(id)`, `openImageDialog(figure)`, `openFigureForm(prefill, {figureId, importResult})` (create/edit with link import; "Danach" opens the copy or preorder dialog or wishes). Both picture file fields offer `PICTURE_TYPES` (JPEG, PNG, WebP, GIF, AVIF, as images.py takes them); the server checks the file itself.
 - `bookmarkletHref()` - the `javascript:` link; `handleImportFragment()` - reads `#import=<snapshot>` at start-up and opens the form.
 
 ### views.js, dashboard.js, settings.js, admin.js, import.js, main.js

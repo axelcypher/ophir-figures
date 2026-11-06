@@ -4,6 +4,9 @@ Every picture is stored once under the SHA-256 of its bytes (figures.image_key =
 in IMAGE_DIR; thumbnails are WebP files in THUMB_DIR made on first use. A figure with an image_url
 but no image_key yet has its picture fetched on first view; a failed fetch is not tried again for
 MISS_RETRY_SECONDS, so a grid of figures with dead links does not hang on every visit.
+
+Which pictures are taken is up to Pillow: what it opens as one of FORMATS. AVIF needs a Pillow
+built with libavif; the wheels of the pinned version have it.
 """
 
 import hashlib
@@ -22,7 +25,9 @@ MAX_IMAGE_BYTES = 15 * 1024 * 1024
 MAX_PIXELS = 60_000_000
 THUMB_WIDTH = 480
 MISS_RETRY_SECONDS = 600
-FORMATS = {"JPEG": ("jpg", "image/jpeg"), "PNG": ("png", "image/png"), "WEBP": ("webp", "image/webp"), "GIF": ("gif", "image/gif")}
+FORMATS = {"JPEG": ("jpg", "image/jpeg"), "PNG": ("png", "image/png"), "WEBP": ("webp", "image/webp"), "GIF": ("gif", "image/gif"),
+           "AVIF": ("avif", "image/avif")}
+FORMAT_NAMES = "JPEG, PNG, WebP, GIF oder AVIF"
 MIME_OF_EXTENSION = {extension: mime for extension, mime in FORMATS.values()}
 _misses = {}
 
@@ -45,9 +50,9 @@ def store_image(payload):
             image_format = image.format
             image.verify()
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError, SyntaxError, ValueError):
-        raise ImageError("Die Datei ist kein lesbares Bild (JPEG, PNG, WebP oder GIF).")
+        raise ImageError(f"Die Datei ist kein lesbares Bild ({FORMAT_NAMES}).")
     if image_format not in FORMATS:
-        raise ImageError("Bilder bitte als JPEG, PNG, WebP oder GIF.")
+        raise ImageError(f"Bilder bitte als {FORMAT_NAMES}.")
     key = f"{hashlib.sha256(payload).hexdigest()}.{FORMATS[image_format][0]}"
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     target = IMAGE_DIR / key

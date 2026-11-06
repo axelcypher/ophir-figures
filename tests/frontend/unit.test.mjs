@@ -245,3 +245,30 @@ describe('line presets', () => {
     set('state.linePresets', null);
   });
 });
+
+describe('the API client on a dropped connection', () => {
+  const calls = [];
+  let failures = 0;
+  const flaky = loadScripts(['js/core.js'], {
+    setTimeout: (callback) => { callback(); return 0; },
+    fetch: async (url, options) => {
+      calls.push(`${options.method || 'GET'} ${url}`);
+      if (failures > 0) { failures--; throw new TypeError('Failed to fetch'); }
+      return { status: 200, ok: true, json: async () => ({ ok: 1 }) };
+    },
+  });
+
+  test('a read is tried once more, a write is not', async () => {
+    calls.length = 0; failures = 1;
+    assert.deepEqual(await flaky.run(`api('/api/figures')`), { ok: 1 });
+    assert.deepEqual(calls, ['GET /api/figures', 'GET /api/figures']);
+
+    calls.length = 0; failures = 1;
+    await assert.rejects(flaky.run(`post('/api/collection',{figure_id:1})`), /Keine Verbindung zum Server/);
+    assert.deepEqual(calls, ['POST /api/collection'], 'a write may have reached the server');
+
+    calls.length = 0; failures = 2;
+    await assert.rejects(flaky.run(`api('/api/figures')`), /Keine Verbindung zum Server/);
+    assert.equal(calls.length, 2, 'only once more');
+  });
+});

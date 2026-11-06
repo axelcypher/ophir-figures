@@ -51,10 +51,19 @@ const statusLabel=key=>state.boot?.statuses?.[key]||key;
 const figureThumb=figure=>appUrl(`/images/figures/${figure.id??figure.figure_id}/thumb${figure.image_version?`?v=${figure.image_version}`:''}`);
 const figureImage=figure=>appUrl(`/images/figures/${figure.id??figure.figure_id}${figure.image_version?`?v=${figure.image_version}`:''}`);
 
+// A read that loses its connection (a phone between networks, a dropped socket) is tried once
+// more after a moment; a write is not, it may have reached the server.
+const API_RETRY_DELAY_MS=400;
 const api = async (url, options={}) => {
+  const request=()=>fetch(appUrl(url),{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+  const reading=!options.method||options.method==='GET';
   let response;
   try{
-    response = await fetch(appUrl(url),{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+    response = await request().catch(async networkError=>{
+      if(!reading||options.signal?.aborted)throw networkError;
+      await new Promise(resolve=>setTimeout(resolve,API_RETRY_DELAY_MS));
+      return request();
+    });
   }catch(networkError){
     const error=new Error('Keine Verbindung zum Server');
     error.isNetworkError=true;

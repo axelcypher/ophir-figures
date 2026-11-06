@@ -135,10 +135,26 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
       await page.waitFor(`document.readyState==='complete'`);
     },
     async login(base, username, password) {
-      await page.goto(`${base}/login`);
-      await page.evaluate(`(()=>{document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value=${JSON.stringify(password)};document.querySelector('form').submit()})()`);
       // The app is ready once the bootstrap data is in and the dashboard has been drawn.
-      await page.waitFor(`typeof state==='object'&&state.boot&&document.querySelector('[data-dashboard-route]')`, { message: 'the app to start after login' });
+      const ready = `typeof state==='object'&&state.boot&&document.querySelector('[data-dashboard-route]')`;
+      const signIn = async () => {
+        await page.goto(`${base}/login`);
+        await page.evaluate(`(()=>{document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value=${JSON.stringify(password)};document.querySelector('form').submit()})()`);
+      };
+      // On Windows, Chrome now and then gives up on one of the page's many connections to the
+      // test server after about a second (net::ERR_CONNECTION_TIMED_OUT, whichever server serves
+      // the app); without main.js the app never starts. So a start that does not happen is tried
+      // again: the page once more (the sign-in went through), then the whole sign-in.
+      const attempts = [signIn, () => page.goto(`${base}/`), signIn];
+      for (const [index, attempt] of attempts.entries()) {
+        try {
+          await attempt();
+          await page.waitFor(ready, { message: 'the app to start after login', timeout: index < attempts.length - 1 ? 8000 : 15000 });
+          return;
+        } catch (error) {
+          if (index === attempts.length - 1) throw error;
+        }
+      }
     },
     /** Opens a view and waits until it has replaced what was on screen and is done loading. */
     async route(route, data) {

@@ -129,8 +129,6 @@ def local_account(identity):
 def sign_in_from_shared_cookie():
     if config.AUTH_MODE not in ("master", "slave"):
         return None
-    if under_auth_path() and request.endpoint not in AUTH_ENDPOINTS:
-        abort(404)
     # A slave only takes a recent token; the master renews older ones after checking the account.
     max_age = ophir_auth.MASTER_MAX_AGE_SECONDS if config.AUTH_MODE == "master" else ophir_auth.FRESH_SECONDS
     identity, age = ophir_auth.read(app.config["SECRET_KEY"], request.cookies.get(ophir_auth.COOKIE), max_age)
@@ -144,6 +142,12 @@ def sign_in_from_shared_cookie():
             session.pop("user_id")
     elif session.get("user_id") != uid:
         session["user_id"] = uid
+    # Only now may renew_shared_cookie trust session["user_id"]: a session cookie can still name
+    # someone who has signed out since, and a request stopped earlier (by this 404 or by another
+    # hook, such as a refused cross-site write) must not hand that out as a new sign-in.
+    g.shared_synced = True
+    if under_auth_path() and request.endpoint not in AUTH_ENDPOINTS:
+        abort(404)
     return None
 
 
@@ -151,7 +155,7 @@ def sign_in_from_shared_cookie():
 def renew_shared_cookie(response):
     """Master: hand the signed-in account to the other apps, renewed when it is older than
     RENEW_AFTER_SECONDS, and take it back once nobody is signed in."""
-    if config.AUTH_MODE != "master":
+    if config.AUTH_MODE != "master" or not g.get("shared_synced"):
         return response
     secure = request.is_secure
     uid = session.get("user_id")

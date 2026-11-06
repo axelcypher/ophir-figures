@@ -31,6 +31,7 @@ Every app also needs the same `SECRET_KEY` (in the homelab: `kv/docker-secrets/o
 ## Master
 
 - Identity of every request comes from the token: no valid token means not signed in, also for the master's own pages. A sign-in (password or SSO) sets the session's account as usual; the response then carries a new token. A sign-out clears the session, and the response clears the token.
+- The token is only renewed or cleared after the request's session was set from the token (`g.shared_synced`). A request stopped before that, by another hook (a refused cross-site write) or the 404 under the auth path, leaves the cookie alone: its session cookie may still name someone who signed out elsewhere, and handing that out again would undo the sign-out.
 - `<auth path>/login?next=<path>`: the sign-in form (password, and SSO when configured). Someone who is already signed in (valid token, account exists) is sent to `next` at once with a renewed token. This is how a slave's outdated token gets renewed without a form. In Ophir Figures the form's SSO button passes `next` on, and password guesses are throttled there as on the app's own `/login`.
 - `<auth path>/oauth/login?next=<path>` starts SSO; the callback ends at `next`. A signed-in person linking SSO to their account (Settings) uses the same route and comes back with `?linked=1` or `?oauth_error=<code>`.
 - `<auth path>/logout` (POST) signs out and sends people to `next` or the sign-in form.

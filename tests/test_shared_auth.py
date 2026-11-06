@@ -140,6 +140,24 @@ def test_signing_out_at_the_auth_path_ends_where_the_slave_asked(mode):
     assert shared_cookie(signed_out) == "" and signed_out.headers["Location"] == "/cards/"
 
 
+def test_a_sign_out_is_not_undone_by_a_request_stopped_early(mode):
+    """The session cookie still names the account after a sign-out elsewhere; a request that ends
+    before the token is checked (a refused cross-site write, a 404 under /auth) must not hand that
+    out as a new sign-in. Figures has one session cookie for /figures and /auth, so the refused write
+    comes first: any request that reaches the check clears the stale account from the session."""
+    mode("master")
+    client = ophir_figures.app.test_client()
+    client.post("/login", data={"username": DEMO[0], "password": DEMO[1]}, base_url=AUTH)
+    assert client.get("/api/bootstrap", base_url=FIGURES).status_code == 200
+    client.delete_cookie(ophir_auth.COOKIE)  # signed out at another app's request
+
+    refused = client.post("/api/settings", json={}, headers={"Origin": "https://evil.example"}, base_url=FIGURES)
+    assert refused.status_code == 403 and shared_cookie(refused) is None
+    missing = client.get("/no-such-page", base_url=AUTH)
+    assert missing.status_code == 404 and shared_cookie(missing) is None
+    assert client.get("/api/bootstrap", base_url=FIGURES).status_code == 401
+
+
 def test_a_deleted_account_loses_the_shared_sign_in(mode):
     mode("master")
     client = ophir_figures.app.test_client()

@@ -100,7 +100,16 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
       problems.push(`HTTP ${message.params.response.status}: ${message.params.response.url}`);
     }
   });
-  const send = (method, params = {}) => new Promise(resolve => { pending.set(++nextId, resolve); socket.send(JSON.stringify({ id: nextId, method, params })); });
+  // A command that gets no answer -- a navigation or a fetch in the page whose connection was taken
+  // but never answered (see login) -- fails after a while instead of holding up the whole suite;
+  // the callers' retries take it from there.
+  const COMMAND_TIMEOUT_MS = 30000;
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    const id = ++nextId;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`DevTools gave no answer to ${method} within ${COMMAND_TIMEOUT_MS / 1000} s`)); }, COMMAND_TIMEOUT_MS);
+    pending.set(id, message => { clearTimeout(timer); resolve(message); });
+    socket.send(JSON.stringify({ id, method, params }));
+  });
   for (const domain of ['Page', 'Runtime', 'Network']) await send(`${domain}.enable`);
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile });
   if (mobile) await send('Emulation.setTouchEmulationEnabled', { enabled: true });
@@ -143,8 +152,11 @@ export async function startBrowser({ width = 1400, height = 950, mobile = false 
       const signIn = async () => {
         await page.goto(`${base}/login`);
         if (!await page.evaluate(`Boolean(document.querySelector('[name=username]'))`)) {
-          // Someone is signed in already, and the sign-in page sent them on to the app.
-          await page.evaluate(`(()=>{const out=()=>fetch(${JSON.stringify(`${base}/logout`)},{method:'POST'});return out().catch(out).then(()=>1)})()`);
+          // Someone is signed in already, and the sign-in page sent them on to the app. They are
+          // signed out from a page without the app (/health): signed out, the running app would
+          // go to the sign-in page itself and break off the request.
+          await page.goto(`${base}/health`);
+          await page.evaluate(`(()=>{const out=()=>fetch(${JSON.stringify(`${base}/logout`)},{method:'POST'});return out().catch(()=>new Promise(resolve=>setTimeout(resolve,500)).then(out)).then(()=>1)})()`);
           await page.goto(`${base}/login`);
         }
         await page.evaluate(`(()=>{document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value=${JSON.stringify(password)};document.querySelector('form').submit()})()`);

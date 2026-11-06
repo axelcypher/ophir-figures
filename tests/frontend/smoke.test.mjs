@@ -27,6 +27,19 @@ describe('app in the browser', { skip }, () => {
   const text = selector => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.innerText`);
   const click = selector => page.evaluate(`(document.querySelector(${JSON.stringify(selector)}).click(),1)`);
   const fill = (selector, value) => page.evaluate(`(()=>{const field=document.querySelector(${JSON.stringify(selector)});field.value=${JSON.stringify(value)};field.dispatchEvent(new Event('input'));field.dispatchEvent(new Event('change'));return 1})()`);
+  // Something that saves: done says when it has. A write whose connection dropped (see
+  // harness.mjs login) shows "Keine Verbindung zum Server" and changes nothing -- the app does not
+  // repeat writes on its own -- so it is done once more.
+  async function save(action, done, message) {
+    await action();
+    try {
+      await page.waitFor(done, { message });
+    } catch (error) {
+      if (!await page.evaluate(`[...document.querySelectorAll('.toast')].some(toast=>/Keine Verbindung/.test(toast.innerText))`)) throw error;
+      await action();
+      await page.waitFor(done, { message });
+    }
+  }
 
   test('starts on the dashboard of the signed-in user', async () => {
     assert.equal(await text('#user-name'), 'Alex Morgan');
@@ -96,10 +109,8 @@ describe('app in the browser', { skip }, () => {
     await page.waitFor(`document.querySelector('#preset-form [data-field="manufacturer"]')?.value==='Max Factory'`, { message: "the preset to start from what the line's figures say" });
     assert.equal(await page.evaluate(`document.querySelector('#preset-form [data-field="category"]').value`), 'figma');
     await fill('#preset-form [data-field="brand"]', 'Good Smile Company');
-    await click('#preset-save');
-    await page.waitFor(`!document.querySelector('#preset-form')&&document.querySelector('#line-presets [data-preset-apply]')`, { message: 'the preset in the list, its figure incomplete' });
-    await click('#line-presets [data-preset-apply]');
-    await page.waitFor(`!document.querySelector('#line-presets [data-preset-apply]')`, { message: "the line's figures completed" });
+    await save(() => click('#preset-save'), `!document.querySelector('#preset-form')&&document.querySelector('#line-presets [data-preset-apply]')`, 'the preset in the list, its figure incomplete');
+    await save(() => click('#line-presets [data-preset-apply]'), `!document.querySelector('#line-presets [data-preset-apply]')`, "the line's figures completed");
     assert.equal(await page.evaluate(`api('/api/figures/3').then(figure=>figure.brand)`), 'Good Smile Company');
     await page.evaluate(`(closeDialog(),1)`);
 
@@ -131,11 +142,9 @@ describe('app in the browser', { skip }, () => {
     await page.waitFor(`document.querySelector('[data-field="name"]').value==='Saber Alter 1/7'`, { message: 'the link import to fill the form' });
     assert.equal(await page.evaluate(`document.querySelector('[data-field="jan"]').value`), '4560228200001');
     await page.evaluate(`(document.querySelector('#figure-after').value='copy',1)`);
-    await click('#figure-save');
-    await page.waitFor(`document.querySelector('#entry-dialog')`, { message: 'the copy dialog after saving' });
+    await save(() => click('#figure-save'), `document.querySelector('#entry-dialog')`, 'the copy dialog after saving');
     await fill('#entry-dialog [data-field="purchase_price"]', '159,90');
-    await click('#entry-save');
-    await page.waitFor(`!document.querySelector('#entry-dialog')&&state.modalFigure?.owned===1`, { message: 'the copy to be saved' });
+    await save(() => click('#entry-save'), `!document.querySelector('#entry-dialog')&&state.modalFigure?.owned===1`, 'the copy to be saved');
     await page.evaluate(`(closeOverlay('figure-modal'),1)`);
     await page.route('collection');
     const collection = await text('#content');
@@ -145,21 +154,19 @@ describe('app in the browser', { skip }, () => {
 
   test('wishing, preordering and the arrival booked into the collection', async () => {
     await page.route('catalog');
-    await click(`.fig-tile[data-figure="${MIKU}"] [data-wish]`);
-    await page.waitFor(`state.boot.counts.wished===1`, { message: 'the wish to count' });
+    await save(() => click(`.fig-tile[data-figure="${MIKU}"] [data-wish]:not(.active)`), `state.boot.counts.wished===1`, 'the wish to count');
     await page.evaluate(`(openFigure(${MIKU}),1)`);
     await page.waitFor(`state.modalFigure?.id===${MIKU}`);
     await click('[data-figure-action="preorder"]');
     await page.waitFor(`document.querySelector('#preorder-dialog')`);
     await fill('#preorder-dialog [data-field="price"]', '199');
     await fill('#preorder-dialog [data-field="shop"]', 'AmiAmi');
-    await click('#preorder-save');
-    await page.waitFor(`!document.querySelector('#preorder-dialog')&&state.modalFigure?.preorders?.length===1`);
+    await save(() => click('#preorder-save'), `!document.querySelector('#preorder-dialog')&&state.modalFigure?.preorders?.length===1`, 'the preorder to be saved');
     assert.equal(await page.evaluate(`state.modalFigure.wished`), false, 'ordering took it off the wishlist');
     await page.evaluate(`(closeOverlay('figure-modal'),1)`);
     await page.route('preorders');
-    await page.evaluate(`(()=>{const select=document.querySelector('[data-status]');select.value='delivered';select.dispatchEvent(new Event('change'));return 1})()`);
-    await page.waitFor(`state.boot.counts.preorders===0&&state.boot.counts.collection===2`, { message: 'the arrival to be booked' });
+    await save(() => page.evaluate(`(()=>{const select=document.querySelector('[data-status]');select.value='delivered';select.dispatchEvent(new Event('change'));return 1})()`),
+      `state.boot.counts.preorders===0&&state.boot.counts.collection===2`, 'the arrival to be booked');
     noProblems();
   });
 
@@ -170,8 +177,7 @@ describe('app in the browser', { skip }, () => {
     await page.waitFor(`document.querySelector('#public-slug')`);
     await fill('#public-slug', 'alex');
     await page.evaluate(`(document.querySelector('#public-enabled').checked=true,1)`);
-    await click('#public-save');
-    await page.waitFor(`document.querySelector('#public-profile-body a[href$="/u/alex"]')`, { message: 'the public link' });
+    await save(() => click('#public-save'), `document.querySelector('#public-profile-body a[href$="/u/alex"]')`, 'the public link');
     await click('[data-mobile-appearance="dark"]');
     noProblems();
   });

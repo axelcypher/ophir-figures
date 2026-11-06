@@ -107,7 +107,7 @@ describe('layout', { skip }, () => {
     const click = selector => page.evaluate(`(document.querySelector(${JSON.stringify(selector)}).click(),1)`);
     // A request from the page that can be repeated (it sets a state), so a dropped connection
     // (see harness.mjs login) is tried once more.
-    const request = (method, url, body) => page.evaluate(`(()=>{const send=()=>fetch(${JSON.stringify(server.base + url)},{method:${JSON.stringify(method)},headers:{'Content-Type':'application/json'}${body ? `,body:${JSON.stringify(JSON.stringify(body))}` : ''}});return send().catch(send).then(response=>response.status)})()`);
+    const request = (method, url, body) => page.evaluate(`(()=>{const send=()=>fetch(${JSON.stringify(server.base + url)},{method:${JSON.stringify(method)},headers:{'Content-Type':'application/json'}${body ? `,body:${JSON.stringify(JSON.stringify(body))}` : ''}});return send().catch(()=>new Promise(resolve=>setTimeout(resolve,500)).then(send)).then(response=>response.status)})()`);
     const closeAll = () => page.evaluate(`(()=>{while(document.querySelector('.dl-modal-overlay'))closeDialog();document.querySelectorAll('.overlay:not(.hidden)').forEach(overlay=>closeOverlay(overlay.id));return 1})()`);
 
     for (const appearance of ['light', 'dark']) {
@@ -208,8 +208,9 @@ describe('layout', { skip }, () => {
         await page.waitFor(`document.querySelector('#public-figure')`, { message: 'a figure on the public profile' });
         await shot(appearance, 'public-figure');
       }
-      // The sign-in page takes the appearance from the cookie the app keeps.
-      await page.goto(`${server.base}/login`);
+      // The sign-in page takes the appearance from the cookie the app keeps. Signed out from a
+      // page without the app, which would otherwise go to the sign-in page itself mid-request.
+      await page.goto(`${server.base}/health`);
       await request('POST', '/logout');
       for (const appearance of ['light', 'dark']) {
         await page.evaluate(`(document.cookie='ophir_figures_theme=${appearance};path=/',1)`);

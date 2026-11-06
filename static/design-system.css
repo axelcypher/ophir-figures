@@ -214,9 +214,33 @@ body.dark.mobile-modern .content .fig-list-tab > small {
 }
 body.dark.mobile-modern .content .fig-list-tab.active > small { background:color-mix(in srgb,var(--ds-accent-ink) 24%,transparent); }
 
+/* ---- The quick search and the import/export dialog on the design layer, on every screen --------
+   Their wide-screen rules are in the theme files; on a phone the older dark-only ones applied,
+   and the light appearance showed dark text on a navy panel. */
+body.dark.mobile-modern :is(.search-dialog,.utility-dialog) { border:1px solid var(--ds-line);background:var(--ds-card);color:var(--ink);box-shadow:0 30px 90px rgba(0,0,0,.28); }
+body.dark.mobile-modern .search-input-wrap { border-color:var(--ds-line);background:transparent; }
+body.dark.mobile-modern .search-input-wrap input { border:0;background:transparent;color:var(--ink); }
+body.dark.mobile-modern .search-input-wrap kbd { border:1px solid var(--ds-line);background:var(--ds-panel);color:var(--muted); }
+body.dark.mobile-modern .search-result { color:var(--ink); }
+body.dark.mobile-modern .search-result:hover { background:var(--ds-inset); }
+body.dark.mobile-modern :is(.search-result,.export-card) :is(b,strong) { color:var(--ink); }
+body.dark.mobile-modern :is(.search-result,.export-card) small { color:var(--muted); }
+body.dark.mobile-modern .empty-search span { color:var(--muted); }
+body.dark.mobile-modern .export-card { border:1px solid var(--ds-line);border-radius:16px;background:var(--ds-panel);color:var(--ink); }
+body.dark.mobile-modern .export-card:hover { border-color:var(--ds-line-strong);background:var(--ds-inset); }
+body.dark.mobile-modern .utility-dialog :is(label,.format-help,.import-text-label) { color:var(--muted); }
+
 /* ---- Closing a dialog: the same round button on every screen, in both appearances ------------ */
 body.dark.mobile-modern .close-button { display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--ds-line);border-radius:50%;background:var(--ds-field);color:var(--ink);font-size:20px;line-height:1;cursor:pointer; }
 body.dark.mobile-modern .close-button:hover { border-color:var(--ds-line-strong); }
+
+/* ---- The primary button in the light appearance: the accent with its ink, wherever it is -------
+   On a phone, the theme gave buttons outside the page (the figure dialog, dialogs) dark ink on
+   the dark green. */
+body.dark.mobile-modern.mobile-light .primary-button:not(:disabled) { background:var(--ds-accent);color:var(--ds-accent-ink); }
+
+/* ---- A status that is on reads in the dark appearance too ----------------------------------- */
+body.dark.mobile-modern:not(.mobile-light) .user-settings-status.is-connected { color:#6fcf9f; }
 
 /* ---- A button that deletes says so in the danger colour, in every dialog and both appearances -- */
 body.dark.mobile-modern :is(.content,.dl-modal,.fig-dialog) .secondary-button.danger:not(:disabled) { color:var(--fig-danger,#c0564d); }

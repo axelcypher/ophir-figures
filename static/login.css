@@ -15,7 +15,7 @@
 }
 :root[data-theme="light"] {
   --bg:#f5f0e6; --surface:#fffdf8; --surface-2:#eee8dc; --ink:#24291f; --muted:#827d70; --line:#dfd7c8;
-  --gold:#bc974b; --gold-2:#a8853d; --gold-soft:rgba(188,151,75,.12);
+  --gold:#bc974b; --gold-2:#a8853d; --gold-soft:rgba(188,151,75,.12); --gold-ink:#86662a;
   --button:#1f3a2e; --button-ink:#f7f2e8; --button-line:transparent;
   --card:linear-gradient(160deg,#fffdf8,#efe8da); --card-line:rgba(188,151,75,.45);
   --plate:linear-gradient(to bottom,rgba(84,61,28,.12),rgba(84,61,28,.02));
@@ -26,7 +26,7 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     --bg:#f5f0e6; --surface:#fffdf8; --surface-2:#eee8dc; --ink:#24291f; --muted:#827d70; --line:#dfd7c8;
-    --gold:#bc974b; --gold-2:#a8853d; --gold-soft:rgba(188,151,75,.12);
+    --gold:#bc974b; --gold-2:#a8853d; --gold-soft:rgba(188,151,75,.12); --gold-ink:#86662a;
     --button:#1f3a2e; --button-ink:#f7f2e8; --button-line:transparent;
     --card:linear-gradient(160deg,#fffdf8,#efe8da); --card-line:rgba(188,151,75,.45);
     --plate:linear-gradient(to bottom,rgba(84,61,28,.12),rgba(84,61,28,.02));
@@ -66,7 +66,8 @@ button, input { font:inherit; }
 .login-card-front { transform:translateX(-50%); z-index:2; box-shadow:inset 0 0 0 1px var(--card-line),0 32px 60px rgba(0,0,0,.34),0 0 40px var(--gold-soft); }
 .login-plate { position:absolute; left:50%; bottom:calc(22% - 34px); width:min(78%,520px); height:68px; transform:translateX(-50%); border-radius:50%; background:var(--plate); box-shadow:inset 0 1px 0 color-mix(in srgb,var(--gold) 35%,transparent); }
 .login-quote { position:relative; max-width:520px; }
-.login-eyebrow { display:block; margin-bottom:12px; color:var(--gold); font-size:11px; font-weight:800; letter-spacing:.16em; }
+/* Gold as text is darker on the light page than the gold of the lines and the logo. */
+.login-eyebrow { display:block; margin-bottom:12px; color:var(--gold-ink,var(--gold)); font-size:11px; font-weight:800; letter-spacing:.16em; }
 .login-quote h1 { margin:0 0 14px; font:600 clamp(36px,4vw,54px)/1.02 var(--font-display); letter-spacing:-.015em; }
 .login-quote p { margin:0; color:var(--muted); font-size:15px; }
 

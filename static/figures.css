@@ -174,8 +174,8 @@ body.dark.mobile-modern .content > :is(.fig-group-switch,.fig-preorder-tabs) { w
   .fig-facts { grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px; }
 }
 @media (max-width:760px) {
-  /* The phone's primary button is the accent of the design layer too, without a heavy glow. */
-  body.dark.mobile-modern.mobile-light .content .primary-button { background:var(--ds-accent);box-shadow:0 4px 12px rgba(31,58,46,.16); }
+  /* The phone's primary button without a heavy glow (its colours: design-system.css). */
+  body.dark.mobile-modern.mobile-light .content .primary-button { box-shadow:0 4px 12px rgba(31,58,46,.16); }
 }
 
 /* ---- Forms ------------------------------------------------------------------------------- */

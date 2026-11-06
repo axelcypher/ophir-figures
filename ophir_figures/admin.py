@@ -11,6 +11,7 @@ from .config import OAUTH_CONFIG_DEFAULTS, OAUTH_CONFIG_PATH, jload, now_iso
 from .web import admin_required, app, db, user_id
 from .schema import ensure_user_lists
 from .auth import resolve_oauth_config
+from .shared_auth import refuse_when_slave
 
 
 # ---- User management (admin) -------------------------------------------------------------------
@@ -63,6 +64,8 @@ def admin_list_users():
 @app.post("/api/admin/users")
 @admin_required
 def admin_create_user():
+    if refused := refuse_when_slave():
+        return refused
     p = request.get_json(force=True)
     if not isinstance(p, dict):
         return jsonify({"error": "Ungültige Anfrage."}), 400
@@ -83,6 +86,8 @@ def admin_create_user():
 @app.patch("/api/admin/users/<int:target_id>")
 @admin_required
 def admin_update_user(target_id):
+    if refused := refuse_when_slave():
+        return refused
     target = db().execute("SELECT * FROM users WHERE id=?", (target_id,)).fetchone()
     if not target:
         return jsonify({"error": "Konto nicht gefunden."}), 404
@@ -117,6 +122,9 @@ def admin_update_user(target_id):
 @app.delete("/api/admin/users/<int:target_id>")
 @admin_required
 def admin_delete_user(target_id):
+    # A slave's accounts follow the master's; one deleted here would come back at the next visit.
+    if refused := refuse_when_slave():
+        return refused
     target = db().execute("SELECT role FROM users WHERE id=?", (target_id,)).fetchone()
     if not target:
         return jsonify({"error": "Konto nicht gefunden."}), 404

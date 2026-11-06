@@ -31,6 +31,7 @@ SQLite  <DATA>/ophir-figures.db (WAL)  +  figure-images/  figure-thumbnails/
 | Preorders | `preorders.py` | [preorders.md](preorders.md) |
 | Export, backup, restore | `backup.py` | [backup.md](backup.md) |
 | Sign-in, SSO, own account, admin API | `auth.py`, `oauth_client.py` (repo root), `account.py`, `admin.py` | [auth.md](auth.md) |
+| Shared sign-in of the Ophir apps on one host (master/slave) | `shared_auth.py`, `ophir_auth.py` (repo root) | [shared-auth.md](shared-auth.md) |
 | Page shell, bootstrap, dashboard, public profile | `pages.py`, `public_profile.py`, `templates/` | [pages.md](pages.md) |
 | Browser frontend and its tests | `templates/index.html`, `static/` | [frontend.md](frontend.md) |
 
@@ -39,6 +40,7 @@ SQLite  <DATA>/ophir-figures.db (WAL)  +  figure-images/  figure-thumbnails/
 - Every route module registers on the one `web.app`. `web.db()` gives one connection per request (`sqlite3.Row`, foreign keys on, the SQL function `search_score`); writing views commit themselves.
 - `@login_required` re-reads the session's user on every request; `@admin_required` adds the admin role. `/api/...` answers 401/403 JSON, pages redirect.
 - A `before_request` hook refuses cross-site writes (Fetch Metadata / `Origin`); it is the app's only CSRF protection.
+- With `OPHIR_AUTH_MODE` `master` or `slave`, a second `before_request` hook (`shared_auth.py`) sets the session's user from the host-wide `ophir_auth` cookie on every request, and the master's `after_request` renews or clears that cookie ([shared-auth.md](shared-auth.md)).
 - Unauthenticated routes: `/login`, the OAuth callback, `/health`, and the public profile (`/u/<slug>`, `/u/<slug>/images/<id>`, `/api/public/<slug>`).
 
 ## Where state lives
@@ -48,7 +50,7 @@ All state is in the directory of `DATABASE_PATH` (`/data` in the container, the 
 - `ophir-figures.db` - users and settings (`users`, `login_failures` for the login throttle, `user_settings`, `app_settings`), the catalogue (`figures`, `price_observations`), account data (`collection_entries`, `watchlists`, `watchlist_entries`, `preorders`, `preorder_events`, `import_operations`) and `schema_migrations`.
 - `ophir-figures.db.before-migration-NNNN` - copies taken before a migration (two kept).
 - `figure-images/` - every picture once, named by the SHA-256 of its bytes (uploads cannot be fetched again: back this up); `figure-thumbnails/` - WebP thumbnails, rebuildable.
-- In the browser: only the theme cookie and nothing else; there is no offline mode.
+- In the browser: only the theme cookie and nothing else (besides the session cookie and, with the shared sign-in, the host-wide `ophir_auth` cookie); there is no offline mode.
 
 ## External services
 

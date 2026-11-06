@@ -33,13 +33,13 @@ Imports nothing from the package.
 
 ### migrations/
 
-- `MIGRATIONS` - the ordered list: `m0001_baseline` creates the tables below, `m0002_login_failures` the login throttle's table. `migrate(connection, path)` applies each missing one in its own transaction and records it in `schema_migrations`; safe with several processes starting together; refuses a database with a version it does not know; copies an existing database first (`<db>.before-migration-NNNN`, two kept). `status(connection)` - (version, expected).
+- `MIGRATIONS` - the ordered list: `m0001_baseline` creates the tables below, `m0002_login_failures` the login throttle's table, `m0003_shared_sign_in` the column `users.auth_subject`. `migrate(connection, path)` applies each missing one in its own transaction and records it in `schema_migrations`; safe with several processes starting together; refuses a database with a version it does not know; copies an existing database first (`<db>.before-migration-NNNN`, two kept). `status(connection)` - (version, expected).
 
-## Tables (m0001, m0002)
+## Tables (m0001, m0002, m0003)
 
 | Table | Holds | Notes |
 | --- | --- | --- |
-| `users`, `user_settings`, `app_settings` | accounts, per-account JSON settings, app-wide settings (`oauth_config`) | `(oauth_provider, oauth_subject)` unique when linked |
+| `users`, `user_settings`, `app_settings` | accounts, per-account JSON settings, app-wide settings (`oauth_config`) | `(oauth_provider, oauth_subject)` unique when linked; `users.auth_subject` (m0003, `TEXT NOT NULL DEFAULT ''`, unique where not empty): the master's account id a slave account is linked to ([shared-auth.md](shared-auth.md)) |
 | `figures` | the shared catalogue | `created_by` SET NULL when the account goes; `attributes` JSON of extra imported fields |
 | `price_observations` | market values per figure, newest = current | CASCADE with the figure; `user_id` SET NULL |
 | `collection_entries` | copies: quantity (>0), condition (`sealed`/`boxed`/`loose`/`damaged`), purchase data, location, notes, `preorder_id` | CASCADE with the user; `preorder_id` SET NULL |

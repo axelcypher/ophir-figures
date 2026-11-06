@@ -2,9 +2,11 @@
 
 from flask import jsonify, render_template
 
+from . import config
 from .auth import resolve_oauth_config
 from .collection import CONDITIONS, dashboard_collection
 from .config import CURRENCY, jload
+from .shared_auth import auth_base
 from .figures import CATEGORIES
 from .preorders import STATUSES, dashboard_preorders
 from .watchlists import lists_of
@@ -43,6 +45,8 @@ def bootstrap():
     return jsonify({
         "user": user_payload, "settings": settings, "counts": counts(uid), "watchlists": lists_of(uid), "imports": imports,
         "oauth": {"enabled": oauth_config["enabled"], "provider_name": oauth_config["provider_name"]},
+        # Shared sign-in of the Ophir apps: in slave mode accounts, passwords and SSO are the master's.
+        "auth": {"mode": config.AUTH_MODE, "base": auth_base()},
         "conditions": CONDITIONS, "statuses": STATUSES, "categories": list(CATEGORIES), "currency": CURRENCY,
     })
 

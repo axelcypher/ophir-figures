@@ -9,7 +9,7 @@
 | Method | Path | Auth | What it does |
 | --- | --- | --- | --- |
 | GET | `/` | login | `templates/index.html`. |
-| GET | `/api/bootstrap` | login | `user` (with `oauth_linked`, `password_set`), `settings`, `counts` (`collection` figures, `wished` figures, open `preorders`, `catalog`), `watchlists`, last 4 `imports`, `oauth` (enabled, name), `conditions`, `statuses`, `categories`, `currency`. |
+| GET | `/api/bootstrap` | login | `user` (with `oauth_linked`, `password_set`), `settings`, `counts` (`collection` figures, `wished` figures, open `preorders`, `catalog`), `watchlists`, last 4 `imports`, `oauth` (enabled, name), `auth` (`mode` of the shared sign-in, `base` where sign-in is: `/auth` on the shared host, else the app's root; [shared-auth.md](shared-auth.md)), `conditions`, `statuses`, `categories`, `currency`. |
 | GET | `/api/dashboard` | login | `collection` (collection.dashboard_collection), `preorders` (`stats`, `upcoming`: 8 open ones by expected release), `counts`. |
 
 ### public_profile.py

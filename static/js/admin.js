@@ -6,8 +6,10 @@ async function renderAdmin(){
   const [oauth,users]=await Promise.all([api('/api/admin/oauth'),api('/api/admin/users')]);
   if(stale())return;
   const oauthLocked=oauth.source==='file'||oauth.source==='environment',ro=oauthLocked?'disabled':'';
+  // Shared sign-in of the Ophir apps: as a slave, accounts and SSO are managed by the master.
+  const byMaster=state.boot.auth?.mode==='slave';
   content.innerHTML=`<div class="page-head compact-page-head"><div><span class="eyebrow">VERWALTUNG</span><h1>Admin</h1><p>Benutzer, Anmeldung und der gemeinsame Katalog.</p></div></div>
-    <details class="settings-section oauth-admin-card ${oauthLocked?'is-locked':''}">
+    ${byMaster?'':`<details class="settings-section oauth-admin-card ${oauthLocked?'is-locked':''}">
       <summary class="oauth-admin-summary">
         <div class="oauth-admin-head">
           <div class="oauth-admin-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.8 20 6v5.2c0 4.8-3.2 8.3-8 10-4.8-1.7-8-5.2-8-10V6l8-3.2Z"/><circle cx="12" cy="10" r="2.2"/><path d="M12 12.2v4"/></svg></div>
@@ -61,13 +63,13 @@ async function renderAdmin(){
         <div class="oauth-admin-actions"><span>Die Anmeldung mit Benutzername und Passwort bleibt zusätzlich verfügbar.</span>${oauthLocked?'':`<button class="primary-button" id="oauth-save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>SSO-Einstellungen speichern</button>`}</div>
       </div>
       </div>
-    </details>
+    </details>`}
     <section class="settings-section admin-settings-card">
       <div class="user-settings-card-head admin-settings-card-head"><span class="user-settings-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c.5-3.6 3-5.6 6.2-5.6s5.700 2 6.200 5.600M16 5.200a3.200 3.200 0 0 1 0 6M18.200 14.800c1.800.700 2.800 2.400 3 5.200"/></svg></span><div><span class="eyebrow">ZUGANG</span><h2>Benutzer</h2><p>Konten anlegen, Rollen vergeben, Passwörter zurücksetzen.</p></div></div>
       <div class="admin-table">${users.map(u=>`<div class="admin-row" data-user-row="${u.id}">
         <div class="admin-row-head"><b>${escapeHtml(u.display_name)}${u.is_self?' <span class="muted">(du)</span>':''}</b><span class="muted">${escapeHtml(u.username)}${u.email?` · ${escapeHtml(u.email)}`:''} · ${u.copies} Figuren · ${u.preorders} offene Vorbestellungen</span></div>
         <div class="admin-status"><span class="admin-status-badge status-${u.role==='admin'?'ok':'none'}">${u.role==='admin'?'Admin':'Benutzer'}</span><span class="muted">${u.oauth_linked?'SSO verknüpft':'kein SSO'}${u.password_set?'':' · kein Passwort'}</span></div>
-        <div class="admin-row-actions">
+        ${byMaster?'':`<div class="admin-row-actions">
           <button class="secondary-button" data-edit-user="${u.id}">Bearbeiten</button>
           ${u.is_self?'':`<button class="icon-button" data-delete-user="${u.id}" data-user-name="${escapeHtml(u.username)}" title="Konto löschen">✕</button>`}
         </div>
@@ -81,9 +83,9 @@ async function renderAdmin(){
             ${u.oauth_linked?`<label class="radio-label"><input type="checkbox" data-user-field="unlink_oauth"> SSO-Verknüpfung lösen</label>`:''}
           </div>
           <button class="primary-button" data-save-user="${u.id}">Speichern</button>
-        </div>
+        </div>`}
       </div>`).join('')}</div>
-      <details class="admin-add"><summary>+ Neues Konto anlegen</summary>
+      ${byMaster?`<p class="muted settings-hint">Die Konten kommen aus der Ophir-App, die die Anmeldung übernimmt: Wer sich dort anmeldet, bekommt hier beim ersten Besuch ein Konto mit Name, E-Mail und Rolle von dort. Anlegen, Ändern und Löschen geschieht dort.</p>`:`<details class="admin-add"><summary>+ Neues Konto anlegen</summary>
         <div class="admin-form admin-user-fields">
           <label>Benutzername<input id="admin-new-user-name" autocomplete="off" placeholder="3–32 Zeichen"></label>
           <label>Anzeigename<input id="admin-new-user-display" placeholder="optional"></label>
@@ -92,7 +94,7 @@ async function renderAdmin(){
           <label>Rolle<select id="admin-new-user-role" class="select-control"><option value="user">Benutzer</option><option value="admin">Admin</option></select></label>
           <button class="primary-button" id="admin-create-user">Konto anlegen</button>
         </div>
-      </details>
+      </details>`}
     </section>
     <section class="settings-section admin-settings-card" id="admin-catalog-card">
       <div class="user-settings-card-head admin-settings-card-head"><span class="user-settings-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 4h11v16H8z"/><path d="M5 7v13h11"/><path d="M11 8h5M11 12h5"/></svg></span><div><span class="eyebrow">KATALOG</span><h2>Katalog aufräumen</h2><p>Doppelte Einträge zusammenführen und Figuren löschen, die niemand verwendet.</p></div></div>
@@ -133,7 +135,7 @@ async function renderAdmin(){
     try{await api(`/api/admin/users/${button.dataset.deleteUser}`,{method:'DELETE'});toast('Konto gelöscht');renderAdmin()}
     catch(error){toast(error.message)}
   });
-  $('#admin-create-user').onclick=async()=>{
+  if($('#admin-create-user'))$('#admin-create-user').onclick=async()=>{
     try{
       await post('/api/admin/users',{username:$('#admin-new-user-name').value,display_name:$('#admin-new-user-display').value,email:$('#admin-new-user-email').value,password:$('#admin-new-user-password').value,role:$('#admin-new-user-role').value});
       toast('Konto angelegt');renderAdmin();

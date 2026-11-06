@@ -4,7 +4,7 @@ Self-hosted, multi-user collection manager for anime figures (scale figures, Nen
 
 ## Features
 
-- Local accounts with user and admin roles; optional sign-in through one OAuth2/OIDC provider
+- Local accounts with user and admin roles; optional sign-in through one OAuth2/OIDC provider; optionally one sign-in shared with the other Ophir apps on the same host (Ophir Cards)
 - Shared catalogue: name, original name, characters, series, manufacturer, category, line, scale, height, edition, release date, retail price with currency, JAN, sculptor, material, source link, picture; filters, sorting and a forgiving search (`Rem|Ram` for alternatives, a letter off is fine)
 - Figures from a link: paste a product page and the form fills itself from its JSON-LD, meta tags and spec tables; for pages that refuse automatic requests (MyFigureCollection, AmiAmi, Kotobukiya, HobbySearch …) the bookmarklet "Zu Ophir Figures" reads the page in your own browser
 - Duplicate check (same JAN, same link, or same name, manufacturer and edition) and, for admins, merging duplicates
@@ -64,10 +64,25 @@ The first start creates the database in the `ophir_figures_data` volume. There i
 | `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_DISCOVERY_URL` | env | SSO settings that replace the Admin UI settings (a mounted config file still wins); `OAUTH_CLIENT_ID` switches SSO on. Every other field of [oauth.json.example](oauth.json.example) works the same way, e.g. `OAUTH_PROVIDER_NAME`, `OAUTH_ACCOUNT_MATCHING` | none (Admin UI settings) | no |
 | `PUBLIC_PROFILE_URL` | env | Base URL public profile links are built on, e.g. `https://ophirfigures.example.org` or, under a path, `https://example.org/figures` | the address the settings page was opened on | no |
 | SSO settings | **Admin → Single Sign-On** or `oauth.json` | One OAuth2/OIDC provider, shape as in [oauth.json.example](oauth.json.example) | off | no |
+| `OPHIR_AUTH_MODE` | env | `standalone`, `master` or `slave`: sign users in itself, also for the other Ophir apps on the host, or take the master's sign-in (see "Shared sign-in with other Ophir apps"); any other value stops the app at start-up | `standalone` | no |
+| `OPHIR_AUTH_PATH` | env | Where the master serves sign-in on the shared host; the same in every app | `/auth` | no |
+| `OPHIR_AUTH_HOME` | env | Master only: where a sign-in at the auth path ends that did not say where to go, e.g. `/figures/` | `/` | no |
 
 ### Under a path
 
 The app can share a host with others under a path such as `https://example.org/figures`. The reverse proxy strips the path before passing a request on and names it in `X-Forwarded-Prefix` (Traefik's `StripPrefix` middleware does both); with `TRUST_PROXY_HEADERS` set, every link, redirect and request of the app then carries it. The session cookie has a name of its own (`ophir_figures_session`), so another app on the same host does not overwrite it.
+
+### Shared sign-in with other Ophir apps
+
+When several Ophir apps share a host (`ophir.example.org/cards`, `/figures`), one of them can sign people in for all: the **master** serves sign-in under `/auth` on that host, and the others (**slaves**) take that sign-in. Signing out anywhere signs out everywhere, and there is one SSO redirect URI for all apps: `https://ophir.example.org/auth/oauth/callback`. Every app can be either; in the author's homelab Ophir Cards is the master and Ophir Figures a slave.
+
+- All apps need the same `SECRET_KEY`; it signs the shared sign-in cookie (`ophir_auth`).
+- The proxy serves the master under its own path **and** under `/auth`, both the way described in "Under a path"; slaves only under their own path.
+- Accounts and roles are managed at the master. A slave creates its own account for someone on their first visit (no password of its own, with a default wishlist), or links an existing one with the same email or username, and takes the display name, email and role from the master. In a slave, accounts, passwords and SSO cannot be changed; **Einstellungen** and **Admin** show them as managed by the master.
+- An account deleted or demoted at the master keeps working at the slaves for up to 12 hours.
+- Password guessing at the master's `/auth/login` is throttled as described under "Setup".
+
+The protocol, also for implementing it in another app, is in [docs/code/shared-auth.md](docs/code/shared-auth.md).
 
 ### Single sign-on (OAuth2 / OIDC)
 

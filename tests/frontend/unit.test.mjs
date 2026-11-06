@@ -149,3 +149,47 @@ describe('under a path prefix', () => {
     assert.equal(run(`appUrl('/api/dashboard')`), '/api/dashboard');
   });
 });
+
+describe('accounts under the shared sign-in of the Ophir apps', () => {
+  const answers = {
+    '/api/admin/oauth': { source: 'database', enabled: true, provider_name: 'Authentik' },
+    '/api/admin/users': [{ id: 7, username: 'kim', display_name: 'Kim', email: 'kim@example.org', role: 'admin', copies: 0, preorders: 0, oauth_linked: 0, password_set: 0, is_self: true }],
+    '/api/admin/catalog': { figures: [], duplicates: [], unused: [] },
+  };
+  const page = mode => {
+    const { run } = loadScripts(['js/core.js', 'js/figures-ui.js', 'js/settings.js', 'js/admin.js'], {
+      fetch: async url => ({ status: 200, ok: true, json: async () => answers[url] }),
+    });
+    run(`state.boot=${JSON.stringify({
+      user: { id: 7, username: 'kim', display_name: 'Kim', email: 'kim@example.org', role: 'admin', oauth_linked: false, password_set: false },
+      settings: {}, oauth: { enabled: true, provider_name: 'Authentik' }, auth: { mode, base: mode === 'standalone' ? '' : '/auth' },
+    })}`);
+    return run;
+  };
+
+  test('a slave shows the account as the master\'s', () => {
+    const run = page('slave');
+    run('renderSettings()');
+    const html = run('content.innerHTML');
+    assert.match(html, /Gemeinsame Anmeldung/);
+    for (const field of ['account-display-name', 'account-username', 'account-email']) assert.match(html, new RegExp(`id="${field}"[^>]*disabled`), field);
+    assert.doesNotMatch(html, /account-password-open|account-save|oauth\/login/);
+  });
+
+  test('a slave\'s admin view has no account editing and no SSO settings', async () => {
+    const run = page('slave');
+    await run('renderAdmin()');
+    const html = run('content.innerHTML');
+    assert.match(html, /Die Konten kommen aus der Ophir-App/);
+    assert.match(html, /Kim/);
+    assert.doesNotMatch(html, /data-edit-user|data-delete-user|admin-create-user|oauth-admin-card/);
+  });
+
+  test('standalone keeps accounts editable', async () => {
+    const run = page('standalone');
+    run('renderSettings()');
+    assert.match(run('content.innerHTML'), /account-password-open[\s\S]*Mit Authentik verbinden[\s\S]*account-save/);
+    await run('renderAdmin()');
+    assert.match(run('content.innerHTML'), /oauth-admin-card[\s\S]*data-edit-user="7"[\s\S]*admin-create-user/);
+  });
+});

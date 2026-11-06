@@ -99,11 +99,11 @@ async function quickAddCopy(figureId){
 
 // ---- The filter bar ---------------------------------------------------------------------------
 
-const SORT_LABELS={release:'Erscheinung',name:'Name',manufacturer:'Hersteller',added:'Hinzugefügt',value:'Marktwert',purchased:'Kaufdatum',spent:'Kaufpreis',collection_value:'Wert',wished:'Gewünscht seit'};
-const FACET_LABELS={category:'Kategorie',manufacturer:'Hersteller',series:'Serie',character:'Charakter',year:'Jahr',line:'Linie',scale:'Maßstab',location:'Aufbewahrung'};
+const SORT_LABELS={release:'Erscheinung',name:'Name',series:'Franchise',brand:'Marke',manufacturer:'Hersteller',line:'Linie',added:'Hinzugefügt',value:'Marktwert',purchased:'Kaufdatum',spent:'Kaufpreis',collection_value:'Wert',wished:'Gewünscht seit'};
+const FACET_LABELS={series:'Franchise',character:'Charakter',brand:'Marke',manufacturer:'Hersteller',line:'Linie',category:'Kategorie',scale:'Maßstab',year:'Jahr',location:'Aufbewahrung'};
 
 function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],extra=''}){
-  const facetKeys=[...['category','manufacturer','series','character','year'].filter(name=>facets[name]),...extraFacets.filter(name=>facets[name])];
+  const facetKeys=[...['series','character','brand','manufacturer','line','category'],...extraFacets,'year'].filter(name=>facets[name]);
   const select=name=>{
     const options=facets[name]||[];
     if(!options.length&&!filters[name])return '';
@@ -111,7 +111,7 @@ function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],ext
   };
   return `<div class="fig-toolbar" data-filter-bar="${key}">
     <div class="fig-toolbar-row">
-      <label class="fig-search"><span aria-hidden="true">⌕</span><input type="search" data-filter="q" value="${escapeHtml(filters.q||'')}" placeholder="Name, Charakter, Serie, JAN … (Rem|Ram)" autocomplete="off"></label>
+      <label class="fig-search"><span aria-hidden="true">⌕</span><input type="search" data-filter="q" value="${escapeHtml(filters.q||'')}" placeholder="Name, Charakter, Franchise, JAN … (Rem|Ram)" autocomplete="off"></label>
       ${modes?`<div class="segmented fig-modes">${modes.map(([value,label])=>`<button type="button" data-mode="${value}" class="${(filters.mode||'all')===value?'active':''}">${label}</button>`).join('')}</div>`:''}
       ${extra}
     </div>
@@ -123,7 +123,7 @@ function filterBar({key,filters,facets={},modes=null,sorts=[],extraFacets=[],ext
     </div>
   </div>`;
 }
-const defaultDirection=sort=>['name','manufacturer'].includes(sort)?'asc':'desc';
+const defaultDirection=sort=>['name','series','brand','manufacturer','line'].includes(sort)?'asc':'desc';
 
 // Wires a filter bar: every change updates `filters` and calls render(); typing waits for a pause.
 function wireFilterBar(root,filters,render,reset){
@@ -190,9 +190,10 @@ function paintFigure(){
         <button type="button" class="secondary-button" data-figure-action="edit">Bearbeiten</button>
       </div>
       <dl class="fig-facts">
-        ${factRow('Serie',escapeHtml(figure.series))}
+        ${factRow('Franchise',escapeHtml(figure.series))}
         ${factRow('Charaktere',escapeHtml(figure.characters))}
         ${factRow('Hersteller',escapeHtml(figure.manufacturer))}
+        ${factRow('Marke',escapeHtml(figure.brand))}
         ${factRow('Erscheinung',escapeHtml(partialDate(figure.release_date)))}
         ${factRow('Edition',escapeHtml(figure.edition))}
         ${factRow('Originalpreis',figure.msrp!=null?escapeHtml(currencyMoney(figure.msrp,figure.msrp_currency)):'')}
@@ -459,8 +460,8 @@ async function uploadFigureImage(figureId,file){
 // ---- A figure: create, correct, fill in from a link ---------------------------------------------
 
 const FIGURE_FIELDS=[
-  ['name','Name *','wide'],['original_name','Originalname (japanisch)','wide'],['characters','Charaktere','',"character"],['series','Serie / Werk','','series'],
-  ['manufacturer','Hersteller','','manufacturer'],['category','Kategorie','','category'],['line','Linie','','line'],['scale','Maßstab','','scale'],
+  ['name','Name *','wide'],['original_name','Originalname (japanisch)','wide'],['characters','Charaktere','',"character"],['series','Franchise','','series'],
+  ['manufacturer','Hersteller','','manufacturer'],['brand','Marke','','brand'],['category','Kategorie','','category'],['line','Linie','','line'],['scale','Maßstab','','scale'],
   ['edition','Edition','','edition'],['release_date','Erscheinung','',null,'z. B. 2026-03'],['height_mm','Höhe (mm)','',null,'z. B. 240'],
   ['jan','JAN / EAN'],['sculptor','Sculptor','','sculptor'],['material','Material','','material'],['source_url','Link zur Quelle','wide',null,'https://…'],
 ];
@@ -488,7 +489,7 @@ async function openFigureForm(prefill={},{figureId=null,importResult=null}={}){
       ${editing?'':`<label class="dl-field dl-field-wide"><span>Danach</span><select class="dl-control" id="figure-after">
         <option value="open">Nur in den Katalog</option><option value="copy">Zur Sammlung hinzufügen</option><option value="preorder">Vorbestellen</option><option value="wish">Auf die Wunschliste</option></select></label>`}
     </div>
-    ${['character','series','manufacturer','category','line','scale','edition','sculptor','material'].map(key=>datalist(`suggest-${key}`,suggestions[key]||[])).join('')}
+    ${['character','series','manufacturer','brand','category','line','scale','edition','sculptor','material'].map(key=>datalist(`suggest-${key}`,suggestions[key]||[])).join('')}
     <div class="dl-modal-actions"><button type="button" class="secondary-button" data-dialog-close>Abbrechen</button><span class="spacer"></span><button type="button" class="primary-button" id="figure-save">${editing?'Speichern':'Figur anlegen'}</button></div>`});
   $$('[data-dialog-close]',modal).forEach(button=>button.onclick=closeDialog);
   let offer=importResult?.offer||null,fromImport=Boolean(importResult);

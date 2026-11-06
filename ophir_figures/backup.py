@@ -99,10 +99,10 @@ def export_csv():
     rows = db().execute(
         f"""SELECT f.*, c.quantity, c.condition, c.purchase_price, c.purchased_at, c.shop, c.location, c.notes, {market_value_sql('f.id')} market_value
             FROM collection_entries c JOIN figures f ON f.id=c.figure_id WHERE c.user_id=? ORDER BY f.name, c.id""", (user_id(),))
-    header = ["Name", "Originalname", "Charaktere", "Serie", "Hersteller", "Kategorie", "Linie", "Maßstab", "Edition", "Erscheinung",
+    header = ["Name", "Originalname", "Charaktere", "Franchise", "Hersteller", "Marke", "Kategorie", "Linie", "Maßstab", "Edition", "Erscheinung",
               "JAN", "Anzahl", "Zustand", "Kaufpreis (EUR)", "Kaufdatum", "Shop", "Aufbewahrung", "Notizen", "Marktwert (EUR)", "Link"]
     return csv_response(
-        ([row["name"], row["original_name"], row["characters"], row["series"], row["manufacturer"], row["category"], row["line"], row["scale"],
+        ([row["name"], row["original_name"], row["characters"], row["series"], row["manufacturer"], row["brand"], row["category"], row["line"], row["scale"],
           row["edition"], row["release_date"], row["jan"], row["quantity"], CONDITIONS.get(row["condition"], row["condition"]),
           money_cell(row["purchase_price"]), row["purchased_at"], row["shop"], row["location"], row["notes"], money_cell(row["market_value"]),
           row["source_url"]] for row in rows),

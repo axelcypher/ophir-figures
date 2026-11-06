@@ -8,7 +8,7 @@
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/figures` | Every figure as a list item (catalogue fields, `has_image`, `image_version`, and for the signed-in account `owned`, `preordered` (open), `wished`, plus `market_value`). Args: `mode` (`all`/`owned`/`missing`/`wished`/`preordered`), `q`, `category`, `manufacturer`, `series`, `line`, `scale`, `character`, `year` (or `none`), `sort` (`release`/`name`/`added`/`value`/`manufacturer`), `direction`. Returns `{figures, total, facets}`; facets are over the whole catalogue. |
+| GET | `/api/figures` | Every figure as a list item (catalogue fields, `has_image`, `image_version`, and for the signed-in account `owned`, `preordered` (open), `wished`, plus `market_value`). Args: `mode` (`all`/`owned`/`missing`/`wished`/`preordered`), `q`, the value filters `series` (franchise), `brand`, `manufacturer`, `line`, `category`, `scale` (each also `__none__`: figures without a value), `character`, `year` (or `none`), `sort` (`release`/`name`/`added`/`value`, or the text sorts `series`/`brand`/`manufacturer`/`line`), `direction`. Returns `{figures, total, facets}`; facets are over the whole catalogue. |
 | GET | `/api/figures/suggestions` | Autocomplete values: catalogue columns by frequency, characters, the account's own shops and storage places, `currencies`. |
 | GET | `/api/figures/<id>` | Detail: all columns, `attributes`, `created_by_name`, `can_delete`, and the account's `entries`, `preorders` (preorders.preorder_rows), `lists`, plus `prices` and `owners`. 404 when unknown. |
 | POST | `/api/figures` | Create. Fields as `clean_figure_fields` reads them; `market_value` adds a first price observation (`source` `import` with `from_import`); `force` skips the duplicate check. 409 `{error, duplicate_id}` for a duplicate. Fetches `image_url` at once; a failure comes back as `image_error`, the link is kept. 201 with the detail. |
@@ -16,11 +16,14 @@
 | DELETE | `/api/figures/<id>` | Only while no account uses it (409) and only by its creator or an admin (403). |
 | GET | `/api/search?q=&limit=` | Quick search: best-scored list items, at least two characters. |
 
-Helpers used by other modules: `normalize_date` (`2025`, `2025-03`, `14.03.2025`, `03/2025`, `03/14/2025`, `March 2025`, `2025年3月` -> ISO with the given precision; returns `(value, error)`), `split_list` (characters), `clean_figure_fields`, `find_duplicate` (same JAN, same `source_url`, or same folded name+manufacturer+edition), `figure_list_sql(where)` (the list query; `?1` is the user id), `list_item`, `apply_filters`, `sort_items`, `facets`, `in_use`, `CATEGORIES`.
+Helpers used by other modules: `normalize_date` (`2025`, `2025-03`, `14.03.2025`, `03/2025`, `03/14/2025`, `March 2025`, `2025年3月` -> ISO with the given precision; returns `(value, error)`), `split_list` (characters), `clean_figure_fields`, `find_duplicate` (same JAN, same `source_url`, or same folded name+manufacturer+edition), `figure_list_sql(where)` (the list query; `?1` is the user id), `list_item`, `apply_filters`, `sort_items`, `facets`, `in_use`, `CATEGORIES`, `FACET_FIELDS` (the value filters, in the order the facets list them), `NONE_VALUE` (`__none__`), `TEXT_SORTS`.
+
+- Text sorts go A-Z, then by name; figures without a value come last in either direction, by name.
+- `series` is shown as **Franchise** in the interface (the work a figure comes from); `brand` (**Marke**, migration 0004) is the label a figure is sold under (Tamashii Nations, F:NEX), `manufacturer` (**Hersteller**) the company that makes it (Bandai Spirits, FuRyu).
 
 ### search.py
 
-- `score(query, text1, weight1, ...)` (SQL `search_score`), `matches`, `query(text)`; `figure_fields(row)` and `figure_score_sql(param, alias)` with the weights: name and original name 4, characters and JAN 3, series and manufacturer 2, line/category/scale/edition/sculptor 1, description 0.4.
+- `score(query, text1, weight1, ...)` (SQL `search_score`), `matches`, `query(text)`; `figure_fields(row)` and `figure_score_sql(param, alias)` with the weights: name and original name 4, characters and JAN 3, series, manufacturer and brand 2, line/category/scale/edition/sculptor 1, description 0.4.
 - Every word must be in some field (spaces and punctuation inside a field ignored); words of 4+ letters without digits may be one edit off (two from 8 letters). Text with `| ^ $ \ [ ] * + ? { }` is matched literally or as a regular expression.
 
 ### images.py

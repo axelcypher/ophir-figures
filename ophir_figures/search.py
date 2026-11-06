@@ -1,7 +1,7 @@
 """How every search box matches: forgiving about spacing, case, accents and small typos.
 
 A query is split into words, and each word has to turn up in one of the figure's fields -- name,
-original (Japanese) name, characters, series, manufacturer, line, category, scale, edition, JAN,
+original (Japanese) name, characters, franchise (series), manufacturer, brand, line, category, scale, edition, JAN,
 sculptor, description -- in any order. Inside a field spaces and punctuation do not count, so
 "Hatsune Miku", "HatsuneMiku" and "hatsune-miku 1/7" all find "Hatsune Miku" (1/7). A word of
 four letters or more (without digits) may be one letter off (two from eight letters on) from a word
@@ -158,7 +158,7 @@ def matches(text, fields):
 
 FIGURE_FIELDS = (
     ("name", NAME), ("original_name", NAME), ("characters", NUMBER), ("jan", NUMBER),
-    ("series", SET), ("manufacturer", SET), ("line", DETAIL), ("category", DETAIL), ("scale", DETAIL),
+    ("series", SET), ("manufacturer", SET), ("brand", SET), ("line", DETAIL), ("category", DETAIL), ("scale", DETAIL),
     ("edition", DETAIL), ("sculptor", DETAIL), ("description", TEXT),
 )
 

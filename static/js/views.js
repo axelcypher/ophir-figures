@@ -17,7 +17,7 @@ async function renderCatalog(){
   if(stale())return;
   content.innerHTML=`${pageHead({eyebrow:'GEMEINSAMER KATALOG',title:'Katalog',text:`${plural(data.total,'Figur','Figuren')} – von allen Konten gepflegt. Fehlt eine, leg sie an.`,
       actions:'<button type="button" class="primary-button" id="catalog-create">＋ Figur anlegen</button>'})}
-    ${filterBar({key:'catalog',filters,facets:data.facets,modes:CATALOG_MODES,sorts:['release','name','manufacturer','added','value'],extraFacets:['line','scale']})}
+    ${filterBar({key:'catalog',filters,facets:data.facets,modes:CATALOG_MODES,sorts:['release','name','series','brand','manufacturer','line','added','value'],extraFacets:['scale']})}
     <p class="fig-count muted">${data.figures.length===data.total?plural(data.total,'Figur','Figuren'):`${data.figures.length} von ${data.total} Figuren`}</p>
     <div id="catalog-grid"></div>`;
   mountFilterPanel('catalog',['.fig-filter-row']);
@@ -43,7 +43,7 @@ async function renderCollection(){
       {label:'Figuren',value:stats.figures},{label:'Exemplare',value:stats.copies},
       {label:'Wert',value:money(stats.value)},{label:'Ausgegeben',value:money(stats.spent)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
-    ${filterBar({key:'collection',filters,facets:data.facets,sorts:['added','purchased','release','name','manufacturer','collection_value','spent'],extraFacets:['location'],extra:conditionSelect})}
+    ${filterBar({key:'collection',filters,facets:data.facets,sorts:['added','purchased','release','name','series','brand','manufacturer','line','collection_value','spent'],extraFacets:['scale','location'],extra:conditionSelect})}
     ${stats.unpriced?`<p class="muted fig-count">${plural(stats.unpriced,'Exemplar hat','Exemplare haben')} weder Kaufpreis noch Marktwert und zählen im Wert nicht mit.</p>`:''}
     <div id="collection-grid"></div>`;
   mountFilterPanel('collection',['.fig-filter-row']);
@@ -75,7 +75,7 @@ async function renderWatchlist(listId){
       {label:'Figuren',value:stats.count},{label:'Zielpreis erreicht',value:stats.target_reached,className:stats.target_reached?'complete':''},
       {label:'Schon in der Sammlung',value:stats.owned},{label:'Geschätzt',value:money(stats.estimate)},
     ],{className:'fig-summary',columns:4,mobileColumns:2})}
-    ${filterBar({key:'watch',filters,facets:data.facets,modes:[['all','Alle'],['missing','Noch nicht in der Sammlung']],sorts:['wished','release','name','manufacturer','value']})}
+    ${filterBar({key:'watch',filters,facets:data.facets,modes:[['all','Alle'],['missing','Noch nicht in der Sammlung']],sorts:['wished','release','name','series','brand','manufacturer','line','value'],extraFacets:['scale']})}
     <div id="watch-grid"></div>`;
   mountFilterPanel('watch',['.fig-filter-row']);
   wireFilterBar(content,filters,()=>renderWatchlist(),()=>{state.watchFilters=Object.assign(filters,defaultWatchFilters())});
@@ -171,7 +171,7 @@ async function renderPreorders(){
 
 // A small search to pick a figure for something (a new preorder): the quick search's results.
 function pickFigure(title,onPick){
-  const modal=openDialog({id:'pick-figure',eyebrow:'FIGUR WÄHLEN',title,body:`<input class="dl-control" id="pick-query" placeholder="Name, Serie, Hersteller …" autocomplete="off"><div id="pick-results" class="fig-pick-results"><p class="muted">Tippe mindestens zwei Zeichen.</p></div>`});
+  const modal=openDialog({id:'pick-figure',eyebrow:'FIGUR WÄHLEN',title,body:`<input class="dl-control" id="pick-query" placeholder="Name, Franchise, Hersteller …" autocomplete="off"><div id="pick-results" class="fig-pick-results"><p class="muted">Tippe mindestens zwei Zeichen.</p></div>`});
   let timer,sequence=0;
   $('#pick-query',modal).oninput=event=>{clearTimeout(timer);timer=setTimeout(async()=>{
     const q=event.target.value.trim(),mine=++sequence,results=$('#pick-results',modal);

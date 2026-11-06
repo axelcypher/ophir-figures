@@ -21,7 +21,7 @@
 | GET | `/api/public/<slug>` | none | `{name, slug, collection, facets (category, manufacturer, series), stats (figures, copies), wishlist?}`; figures through `public_figure` only. |
 | GET | `/u/<slug>/images/<id>` | none | Thumbnail, or the full picture with `?size=full`, only for figures in the shared collection or shared default wishlist; 404 otherwise. |
 
-- `public_figure(item)` is the only shape that leaves the server for visitors: `id, name, original_name, characters, series, manufacturer, category, line, scale, edition, release_date, has_image, image_version, owned`. No prices, values, purchase data, conditions, storage places, notes, preorders or target prices.
+- `public_figure(item)` is the only shape that leaves the server for visitors: `id, name, original_name, characters, series, manufacturer, brand, category, line, scale, edition, release_date, has_image, image_version, owned`. No prices, values, purchase data, conditions, storage places, notes, preorders or target prices.
 
 ## Dependencies
 

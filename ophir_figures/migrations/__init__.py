@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import now_iso
-from . import m0001_baseline, m0002_login_failures, m0003_shared_sign_in
+from . import m0001_baseline, m0002_login_failures, m0003_shared_sign_in, m0004_figure_brand
 
-MIGRATIONS = [m0001_baseline, m0002_login_failures, m0003_shared_sign_in]
+MIGRATIONS = [m0001_baseline, m0002_login_failures, m0003_shared_sign_in, m0004_figure_brand]
 
 BACKUPS_KEPT = 2
 

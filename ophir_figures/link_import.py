@@ -50,7 +50,8 @@ LINES = (
 LABELS = {
     "series": ("origin", "series", "serie", "franchise", "title", "work", "作品名", "作品", "シリーズ", "werk", "anime"),
     "characters": ("character", "characters", "charakter", "charaktere", "キャラクター"),
-    "manufacturer": ("manufacturer", "hersteller", "company", "companies", "maker", "brand", "marke", "メーカー", "発売元", "製造元"),
+    "manufacturer": ("manufacturer", "hersteller", "company", "companies", "maker", "メーカー", "発売元", "製造元"),
+    "brand": ("brand", "marke", "label", "ブランド"),
     "release_date": ("release date", "release", "releasedate", "erscheinungsdatum", "erscheinungstermin", "release-datum",
                      "veröffentlichung", "発売日", "発売時期", "発売予定", "launch date"),
     "price": ("price", "preis", "msrp", "retail price", "価格", "希望小売価格", "定価", "uvp"),
@@ -333,9 +334,13 @@ def extract(snapshot):
     canonical = str(snapshot.get("canonical") or meta.get("og:url") or url)
     fields["source_url"] = canonical if canonical.startswith("http") else url
 
+    brand = labelled(page_fields, "brand")
+    fields["brand"] = (strip_roles(brand) or [""])[0] if brand else (ld_text(product.get("brand")) or meta.get("product:brand", ""))
     manufacturer = labelled(page_fields, "manufacturer")
-    fields["manufacturer"] = (strip_roles(manufacturer, "manufacturer") or [""])[0] if manufacturer else (
-        ld_text(product.get("manufacturer")) or ld_text(product.get("brand")) or meta.get("product:brand", ""))
+    fields["manufacturer"] = (strip_roles(manufacturer, "manufacturer") or [""])[0] if manufacturer else ld_text(product.get("manufacturer"))
+    if not fields["manufacturer"] and fields["brand"]:
+        # Shops name the maker as the product's brand more often than not.
+        fields["manufacturer"] = fields["brand"]
     series = labelled(page_fields, "series")
     fields["series"] = ", ".join(strip_roles(series)) if series else ""
     characters = labelled(page_fields, "characters")
@@ -414,7 +419,7 @@ def extract(snapshot):
     if not fields["image_url"]:
         warnings.append("Kein Bild gefunden – du kannst eins hochladen.")
     if not any(fields.get(key) for key in ("manufacturer", "series", "release_date", "jan")):
-        warnings.append("Hersteller, Serie und Erscheinungsdatum standen nicht maschinenlesbar auf der Seite – bitte ergänzen.")
+        warnings.append("Hersteller, Franchise und Erscheinungsdatum standen nicht maschinenlesbar auf der Seite – bitte ergänzen.")
     return {"fields": {key: value for key, value in fields.items() if value not in ("", None)}, "offer": offer, "warnings": warnings,
             "unmapped": dict(list(unmapped.items())[:30])}
 

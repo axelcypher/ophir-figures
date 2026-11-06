@@ -16,7 +16,7 @@ let profile=null;
 
 const matches=(figure,query)=>{
   const words=query.toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').match(/[\p{L}\p{N}]+/gu)||[];
-  const text=[figure.name,figure.original_name,figure.characters,figure.series,figure.manufacturer,figure.line,figure.scale].join(' ').toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'');
+  const text=[figure.name,figure.original_name,figure.characters,figure.series,figure.manufacturer,figure.brand,figure.line,figure.scale].join(' ').toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'');
   return words.every(word=>text.includes(word));
 };
 
@@ -29,7 +29,7 @@ function tile(figure){
 }
 
 function showFigure(figure){
-  const facts=[['Serie',figure.series],['Charaktere',figure.characters],['Hersteller',figure.manufacturer],['Kategorie',figure.category],['Linie',figure.line],['Maßstab',figure.scale],['Edition',figure.edition],['Erscheinung',partialDate(figure.release_date)]].filter(([,value])=>value);
+  const facts=[['Franchise',figure.series],['Charaktere',figure.characters],['Hersteller',figure.manufacturer],['Marke',figure.brand],['Kategorie',figure.category],['Linie',figure.line],['Maßstab',figure.scale],['Edition',figure.edition],['Erscheinung',partialDate(figure.release_date)]].filter(([,value])=>value);
   const overlay=document.createElement('div');
   overlay.className='overlay';overlay.id='public-figure';
   overlay.innerHTML=`<div class="fig-dialog" role="dialog" aria-modal="true"><button type="button" class="close-button fig-dialog-close" aria-label="Schließen">×</button>
@@ -56,8 +56,8 @@ function render(){
       <p>${number(profile.stats.figures)} Figuren · ${number(profile.stats.copies)} Exemplare</p></div></section>
     ${profile.wishlist?`<nav class="segmented public-games" aria-label="Ansicht"><button type="button" data-view="" class="${wishlist?'':'active'}">Sammlung</button><button type="button" data-view="#wishlist" class="${wishlist?'active':''}">Wunschliste <small>${profile.wishlist.length}</small></button></nav>`:''}
     <div class="fig-toolbar"><div class="fig-toolbar-row">
-      <label class="fig-search"><span aria-hidden="true">⌕</span><input type="search" id="public-search" value="${esc(filters.q)}" placeholder="Name, Serie, Hersteller …"></label>
-      ${select('category','Kategorie')}${select('manufacturer','Hersteller')}${select('series','Serie')}
+      <label class="fig-search"><span aria-hidden="true">⌕</span><input type="search" id="public-search" value="${esc(filters.q)}" placeholder="Name, Franchise, Hersteller …"></label>
+      ${select('category','Kategorie')}${select('manufacturer','Hersteller')}${select('series','Franchise')}
     </div></div>
     ${shown.length?`<div class="fig-grid">${shown.map(tile).join('')}</div>`:`<div class="empty-state"><b>${all.length?'Keine Figur passt zur Suche':'Hier ist noch nichts'}</b></div>`}`;
   view.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{history.replaceState(null,'',button.dataset.view||location.pathname);render()});

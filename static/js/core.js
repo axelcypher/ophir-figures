@@ -5,9 +5,11 @@
 const APP_ROOT=document.documentElement.dataset.root||'';
 const appUrl=path=>path.startsWith('/')?APP_ROOT+path:path;
 
-const defaultCatalogFilters=()=>({q:'',mode:'all',category:'',manufacturer:'',series:'',character:'',year:'',line:'',scale:'',sort:'release',direction:''});
-const defaultCollectionFilters=()=>({q:'',category:'',manufacturer:'',series:'',character:'',year:'',location:'',condition:'',sort:'added',direction:'desc'});
-const defaultWatchFilters=()=>({q:'',mode:'all',category:'',manufacturer:'',series:'',sort:'wished',direction:'desc'});
+// The fields every figure grid filters by value (figures.py FACET_FIELDS), plus character and year.
+const FIGURE_FACETS=()=>({series:'',character:'',brand:'',manufacturer:'',line:'',category:'',scale:'',year:''});
+const defaultCatalogFilters=()=>({q:'',mode:'all',...FIGURE_FACETS(),sort:'release',direction:''});
+const defaultCollectionFilters=()=>({q:'',...FIGURE_FACETS(),location:'',condition:'',sort:'added',direction:'desc'});
+const defaultWatchFilters=()=>({q:'',mode:'all',...FIGURE_FACETS(),sort:'wished',direction:'desc'});
 
 const state={
   boot:null, route:'dashboard', edit:false, view:'grid',
@@ -277,7 +279,7 @@ let searchSequence=0,searchController=null;
 async function doSearch(q){
   const mine=++searchSequence;searchController?.abort();searchController=null;
   const wrap=$('#search-results');
-  if(q.trim().length<2){wrap.innerHTML='<div class="empty-search"><b>Finde jede Figur. Sofort.</b><span>Name, Charakter, Serie, Hersteller oder JAN – in beliebiger Reihenfolge, z.&nbsp;B. „Miku 1/7 Good Smile“. Alternativen mit |: Rem|Ram</span></div>';return}
+  if(q.trim().length<2){wrap.innerHTML='<div class="empty-search"><b>Finde jede Figur. Sofort.</b><span>Name, Charakter, Franchise, Marke, Hersteller oder JAN – in beliebiger Reihenfolge, z.&nbsp;B. „Miku 1/7 Good Smile“. Alternativen mit |: Rem|Ram</span></div>';return}
   const controller=searchController=new AbortController();
   let rows;
   try{rows=await api(`/api/search?q=${encodeURIComponent(q)}`,{signal:controller.signal})}

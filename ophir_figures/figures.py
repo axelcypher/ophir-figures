@@ -21,7 +21,7 @@ from .web import app, db, login_required, user_id
 CATEGORIES = ("Scale-Figur", "Non-Scale-Figur", "Nendoroid", "figma", "Prize-Figur", "Actionfigur",
               "Garage Kit", "Model Kit", "Plüsch", "Sonstiges")
 CURRENCIES = ("JPY", "EUR", "USD", "GBP", "CNY", "KRW", "HKD", "TWD", "CAD", "AUD", "CHF")
-TEXT_FIELDS = ("name", "original_name", "characters", "series", "manufacturer", "category", "line", "scale",
+TEXT_FIELDS = ("name", "original_name", "characters", "series", "manufacturer", "brand", "category", "line", "scale",
                "edition", "sculptor", "material")
 TEXT_LIMIT, DESCRIPTION_LIMIT = 300, 5000
 OPEN_PREORDER = "('ordered','paid','shipped')"
@@ -154,7 +154,7 @@ def image_fields(row):
     return {"has_image": bool(row["image_key"] or row["image_url"]), "image_version": (row["image_key"] or "")[:12]}
 
 
-LIST_COLUMNS = ("id", "name", "original_name", "characters", "series", "manufacturer", "category", "line", "scale",
+LIST_COLUMNS = ("id", "name", "original_name", "characters", "series", "manufacturer", "brand", "category", "line", "scale",
                 "edition", "release_date", "msrp", "msrp_currency", "jan", "created_at")
 
 
@@ -178,21 +178,30 @@ def list_item(row):
     return item
 
 
+# Fields a grid can be filtered by value, sorted by, and (the first four) grouped by.
+FACET_FIELDS = ("series", "brand", "manufacturer", "line", "category", "scale")
+# A filter value that asks for the figures without a value in that field.
+NONE_VALUE = "__none__"
+
 SORTS = {
     "release": lambda item: (item["release_date"] or "0000", item["id"]),
     "name": lambda item: (search.fold(item["name"]), item["id"]),
     "added": lambda item: (item["created_at"], item["id"]),
     "value": lambda item: (item["market_value"] if item["market_value"] is not None else -1, item["id"]),
-    "manufacturer": lambda item: (search.fold(item["manufacturer"]), search.fold(item["name"])),
 }
+# Sorted by a text field (franchise, brand, manufacturer, line): A-Z, then by name; figures without
+# a value come last in either direction, by name.
+TEXT_SORTS = ("series", "brand", "manufacturer", "line")
 DESCENDING = {"release", "added", "value"}
 
 
 def apply_filters(items, args):
     """The filters every figure grid shares (catalogue, collection, wishlist), on list items."""
-    for key in ("category", "manufacturer", "series", "line", "scale"):
+    for key in FACET_FIELDS:
         wanted = str(args.get(key) or "").strip()
-        if wanted:
+        if wanted == NONE_VALUE:
+            items = [item for item in items if not item.get(key)]
+        elif wanted:
             items = [item for item in items if (item.get(key) or "") == wanted]
     character = str(args.get("character") or "").strip()
     if character:
@@ -208,6 +217,12 @@ def apply_filters(items, args):
 
 
 def sort_items(items, sort, direction=None):
+    if sort in TEXT_SORTS:
+        descending = direction == "desc"
+        with_value = sorted((item for item in items if item.get(sort)), reverse=descending,
+                            key=lambda item: (search.fold(item[sort]), search.fold(item["name"]), item["id"]))
+        without = sorted((item for item in items if not item.get(sort)), key=lambda item: (search.fold(item["name"]), item["id"]))
+        return with_value + without
     sort = sort if sort in SORTS else "release"
     descending = (direction or ("desc" if sort in DESCENDING else "asc")) == "desc"
     return sorted(items, key=SORTS[sort], reverse=descending)
@@ -215,9 +230,9 @@ def sort_items(items, sort, direction=None):
 
 def facets(items):
     """For the filter menus: every value of the grid's figures with how often it occurs."""
-    result = {key: {} for key in ("category", "manufacturer", "series", "line", "scale", "character", "year")}
+    result = {key: {} for key in (*FACET_FIELDS, "character", "year")}
     for item in items:
-        for key in ("category", "manufacturer", "series", "line", "scale"):
+        for key in FACET_FIELDS:
             if item.get(key):
                 result[key][item[key]] = result[key].get(item[key], 0) + 1
         for character in split_list(item.get("characters")):
@@ -274,7 +289,8 @@ def figure_suggestions():
         "SELECT location FROM collection_entries WHERE user_id=? AND location!='' GROUP BY location ORDER BY COUNT(*) DESC LIMIT 100", (uid,))]
     categories = list(dict.fromkeys([*CATEGORIES, *distinct("category")]))
     return jsonify({
-        "category": categories, "manufacturer": distinct("manufacturer"), "series": distinct("series"), "line": distinct("line"),
+        "category": categories, "manufacturer": distinct("manufacturer"), "brand": distinct("brand"), "series": distinct("series"),
+        "line": distinct("line"),
         "scale": list(dict.fromkeys(["1/4", "1/6", "1/7", "1/8", "Non-Scale", *distinct("scale")])), "sculptor": distinct("sculptor"),
         "material": distinct("material"), "edition": distinct("edition"),
         "character": sorted(characters, key=lambda name: (-characters[name], search.fold(name)))[:600],

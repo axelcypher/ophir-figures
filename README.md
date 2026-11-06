@@ -135,7 +135,7 @@ python -m venv .venv
 - Code layout: `app.py` is only the entry point; the application is the `ophir_figures` package. Module docs: [docs/code/](docs/code/architecture.md).
 - Schema changes: add `ophir_figures/migrations/mNNNN_<what>.py` with `NAME` and `apply(connection, context)` and list it in `MIGRATIONS`. A released migration is never edited; nothing else creates or alters tables (a test enforces it).
 - Python tests: `python -m pytest` - every API against a throwaway database with a small built-in catalogue; outgoing requests are replaced by fakes.
-- Frontend tests: `node --test "tests/frontend/*.test.mjs"` - script logic and the bookmarklet in a bare JavaScript context, and smoke tests that drive the real app in headless Chrome (`CHROME_BIN` sets the browser, `OPHIR_PYTHON` the interpreter that starts the app).
+- Frontend tests: `node --test "tests/frontend/*.test.mjs"` - script logic and the bookmarklet in a bare JavaScript context, smoke tests that drive the real app in headless Chrome, and a layout test of every view and dialog in both appearances on a phone and a wide screen (nothing past the right edge, every text readable against its background) (`CHROME_BIN` sets the browser, `OPHIR_PYTHON` the interpreter that starts the app; `OPHIR_SCREENSHOTS=<directory>` saves a screenshot of every state the layout test checks).
 - Lint / format: none configured.
 
 ## Release

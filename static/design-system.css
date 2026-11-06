@@ -196,3 +196,75 @@ body.dark.mobile-modern .content .oauth-admin-card { max-width:none; }
    inset tone. */
 body[data-route="admin"].dark.mobile-modern .content>:is(.admin-settings-card,.oauth-admin-card),
 body.dark.mobile-modern .content .oauth-admin-card { background:var(--ds-card); }
+
+/* ---- Numbers -------------------------------------------------------------------------------
+   The display face sets old-style figures unless told otherwise, and in the numbers a 1 read as
+   an I. Lining figures everywhere; tabular ones where numbers stand in columns. Important on
+   purpose: the theme files set the font shorthand on hundreds of rules, and each one resets
+   font-variant-numeric. */
+body.dark.mobile-modern, body.dark.mobile-modern * { font-variant-numeric:lining-nums!important; }
+body.dark.mobile-modern :is(ophir-stat-pill [data-stat] b,.fig-value,.fig-expected,.fig-upcoming-when) { font-variant-numeric:lining-nums tabular-nums!important; }
+/* A count beside a heading or on a tab is a small pill in the interface face, not a footnote. */
+body.dark.mobile-modern :is(.content,.dl-modal,.fig-dialog) :is(h1,h2,h3) > small,
+body.dark.mobile-modern :is(.content,.fig-dialog) :is(.fig-modes,.fig-tabs,.fig-preorder-tabs) button > small,
+body.dark.mobile-modern .content .fig-list-tab > small {
+  display:inline-grid;place-items:center;min-width:19px;height:19px;margin-left:6px;padding:0 6px;border-radius:999px;
+  background:color-mix(in srgb,var(--muted) 16%,transparent);color:inherit;opacity:1;
+  font:700 10.5px/1 var(--font-ui,inherit);letter-spacing:0;vertical-align:2px;
+}
+body.dark.mobile-modern .content .fig-list-tab.active > small { background:color-mix(in srgb,var(--ds-accent-ink) 24%,transparent); }
+
+/* ---- Closing a dialog: the same round button on every screen, in both appearances ------------ */
+body.dark.mobile-modern .close-button { display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--ds-line);border-radius:50%;background:var(--ds-field);color:var(--ink);font-size:20px;line-height:1;cursor:pointer; }
+body.dark.mobile-modern .close-button:hover { border-color:var(--ds-line-strong); }
+
+/* ---- A button that deletes says so in the danger colour, in every dialog and both appearances -- */
+body.dark.mobile-modern :is(.content,.dl-modal,.fig-dialog) .secondary-button.danger:not(:disabled) { color:var(--fig-danger,#c0564d); }
+
+/* ---- Buttons that are links (CSV downloads, the bookmarklet) look and sit like buttons -------- */
+body.dark.mobile-modern a:is(.primary-button,.secondary-button) { display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none; }
+
+/* ---- File fields: a button and the file's name in a dashed drop area -------------------------- */
+body.dark.mobile-modern :is(.content,.dl-modal,.utility-dialog) input[type=file] {
+  min-height:0;padding:6px;border:1px dashed var(--ds-line-strong);border-radius:12px;background:var(--ds-panel);
+  color:var(--muted);font:600 12.5px var(--font-ui,inherit);cursor:pointer;
+}
+body.dark.mobile-modern :is(.content,.dl-modal,.utility-dialog) input[type=file]::file-selector-button {
+  margin-right:12px;padding:8px 14px;border:1px solid var(--ds-line);border-radius:999px;background:var(--ds-field);
+  color:var(--ink);font:700 12.5px var(--font-ui,inherit);cursor:pointer;
+}
+body.dark.mobile-modern :is(.content,.dl-modal,.utility-dialog) input[type=file]:hover::file-selector-button { border-color:var(--ds-line-strong); }
+
+/* ---- Search fields: the hint reads as a hint ------------------------------------------------- */
+body.dark.mobile-modern :is(.fig-search input,.dl-control,.select-control)::placeholder { color:var(--muted);font-weight:500;opacity:.85; }
+
+/* ---- Rows of tabs: on a phone one line that scrolls sideways, never a second, ragged row ------ */
+@media (max-width:760px) {
+  body.dark.mobile-modern :is(.content,.fig-dialog) :is(.fig-modes,.fig-group-switch,.fig-preorder-tabs,.fig-tabs,.fig-list-tabs) {
+    flex-wrap:nowrap;max-width:100%;min-width:0;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;
+  }
+  body.dark.mobile-modern :is(.content,.fig-dialog) :is(.fig-modes,.fig-group-switch,.fig-preorder-tabs,.fig-tabs,.fig-list-tabs)::-webkit-scrollbar { display:none; }
+  body.dark.mobile-modern :is(.content,.fig-dialog) :is(.fig-modes,.fig-group-switch,.fig-preorder-tabs,.fig-tabs,.fig-list-tabs) > button { flex:none;white-space:nowrap; }
+}
+
+/* ---- Filters of the figure grids: in a row on a wide screen ----------------------------------
+   The filter bar is a panel of its own; on a wide screen its selects sit in it in one row rather
+   than behind the "Filter" toggle, which stays for phones. */
+@media (min-width:761px) {
+  body.dark.mobile-modern .content .fig-toolbar :is(.mobile-filter-shell,.mobile-filter-body,.mobile-filter-surface) { display:contents; }
+  body.dark.mobile-modern .content .fig-toolbar .mobile-filter-toggle { display:none; }
+}
+
+/* ---- Quick edit in the sidebar: the label wraps beside its switch, not under it -------------- */
+body.dark.mobile-modern .edit-panel-copy { flex:1 1 auto;min-width:0; }
+body.dark.mobile-modern .edit-panel-copy strong { display:block;white-space:normal;hyphens:manual;line-height:1.2; }
+
+/* ---- The dashboard of Ophir Figures: numbers, then the four tiles, then the cards -------------
+   The layout came with room for a banner and a list below the tiles (Ophir Cards); here the head
+   has only the numbers and the tiles, and the tiles fill their row. None of them is marked: the
+   first one is no more current than the others. */
+body.dark.mobile-modern .content .dashboard-shell .dashboard-hero { grid-template-areas:"summary" "quick"; }
+body.dark.mobile-modern .content .dashboard-shell .dashboard-quick-nav { grid-template-columns:repeat(4,minmax(0,1fr));width:100%; }
+@media (min-width:761px) {
+  body.dark.mobile-modern .content .dashboard-quick-nav button:first-child:not(:hover) { border-color:transparent;background:var(--surface-2); }
+}

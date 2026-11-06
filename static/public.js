@@ -9,6 +9,7 @@ const root=document.documentElement.dataset.root||'';
 const base=`${root}/u/${encodeURIComponent(slug)}`;
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const number=value=>Number(value||0).toLocaleString('de-DE');
+const count=(value,one,many)=>`${number(value)} ${Number(value)===1?one:many}`;
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const partialDate=value=>{if(!value)return '';const [year,month,day]=value.split('-');return day?`${day}.${month}.${year}`:month?`${MONTHS[Number(month)-1]} ${year}`:year};
 const filters={q:'',category:'',manufacturer:'',series:''};
@@ -53,7 +54,7 @@ function render(){
     return values.length>1?`<label class="fig-filter"><span>${label}</span><select class="select-control" data-filter="${key}"><option value="">Alle</option>${values.map(value=>`<option ${filters[key]===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label>`:'';
   };
   view.innerHTML=`<section class="public-head"><div><span class="eyebrow">ÖFFENTLICHE SAMMLUNG</span><h1>${esc(profile.name)}</h1>
-      <p>${number(profile.stats.figures)} Figuren · ${number(profile.stats.copies)} Exemplare</p></div></section>
+      <p>${count(profile.stats.figures,'Figur','Figuren')} · ${count(profile.stats.copies,'Exemplar','Exemplare')}</p></div></section>
     ${profile.wishlist?`<nav class="segmented public-games" aria-label="Ansicht"><button type="button" data-view="" class="${wishlist?'':'active'}">Sammlung</button><button type="button" data-view="#wishlist" class="${wishlist?'active':''}">Wunschliste <small>${profile.wishlist.length}</small></button></nav>`:''}
     <div class="fig-toolbar"><div class="fig-toolbar-row">
       <label class="fig-search"><span aria-hidden="true">⌕</span><input type="search" id="public-search" value="${esc(filters.q)}" placeholder="Name, Franchise, Hersteller …"></label>
